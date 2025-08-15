@@ -1,0 +1,45 @@
+.hero {
+  padding: 96px 0 72px;
+  text-align: center;
+}
+
+.eyebrow {
+  display: inline-block;
+  margin-bottom: 12px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.title {
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  margin-top: 12px;
+  color: var(--text-secondary);
+  font-size: 18px;
+}
+
+.cta {
+  margin-top: 24px;
+}
+
+.register-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 20px;
+  background: #111;
+  color: #fff;
+  border-radius: 999px;
+  border: 1px solid #111;
+  box-shadow: var(--shadow-sm);
+}
+.register-button:hover {
+  filter: brightness(1.02);
+}
