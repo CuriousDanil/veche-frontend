@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { apiFetch } from '../lib/api'
+import { parseApiErrorResponse } from '../lib/errors'
 
 type RegisterPayload = {
   email: string
@@ -68,8 +69,7 @@ export default function Register() {
         credentials: 'include',
       })
       if (!response.ok) {
-        const text = await response.text()
-        throw new Error(text || `Request failed with ${response.status}`)
+        throw new Error(await parseApiErrorResponse(response))
       }
       setStatus('Registered successfully')
       setForm({ email: '', password: '', name: '', companyName: '', partyName: '' })

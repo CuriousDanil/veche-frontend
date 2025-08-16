@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
+import useSWR from 'swr'
+import { swrJsonFetcher } from '../lib/swr'
+import { Skeleton, SkeletonText } from '../components/Skeleton'
 
 type Party = { id: string; name: string }
 type Discussion = { id: string; subject: string; status: 'WAITING' | 'VOTING' | 'FINAL_VOTING' | 'RESOLVED' | 'ARCHIVED'; party: Party }
@@ -21,38 +24,18 @@ export default function CreateVotingSession() {
   const [status, setStatus] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const [parties, setParties] = useState<Party[]>([])
-  const [discussions, setDiscussions] = useState<Discussion[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: parties, isLoading: pLoad } = useSWR<Party[]>('/api/parties', swrJsonFetcher, { refreshInterval: 60000 })
+  const { data: discussions, isLoading: dLoad } = useSWR<Discussion[]>('/api/discussions', swrJsonFetcher, { refreshInterval: 5000 })
+  useMemo(() => {
+    if (!partyId && parties && myPartyIds.length > 0) {
+      const firstMyParty = parties.find((pp) => myPartyIds.includes(pp.id))
+      if (firstMyParty) setPartyId(firstMyParty.id)
+    }
+  }, [parties?.length, myPartyIds.join(',')])
 
-  useEffect(() => {
-    ;(async () => {
-      try {
-        const [pRes, dRes] = await Promise.all([
-          apiFetch('/api/parties'),
-          apiFetch('/api/discussions'),
-        ])
-        if (!pRes.ok) throw new Error(`Parties failed: ${pRes.status}`)
-        if (!dRes.ok) throw new Error(`Discussions failed: ${dRes.status}`)
-        const p = (await pRes.json()) as Party[]
-        const d = (await dRes.json()) as Discussion[]
-        setParties(p)
-        setDiscussions(d)
-        if (!partyId) {
-          const firstMyParty = p.find((pp) => myPartyIds.includes(pp.id))
-          if (firstMyParty) setPartyId(firstMyParty.id)
-        }
-      } catch (e) {
-        setStatus((e as Error).message)
-      } finally {
-        setLoading(false)
-      }
-    })()
-  }, [])
-
-  const myParties = useMemo(() => parties.filter((p) => myPartyIds.includes(p.id)), [parties, myPartyIds.join(',')])
+  const myParties = useMemo(() => (parties || []).filter((p) => myPartyIds.includes(p.id)), [parties, myPartyIds.join(',')])
   const waitingDiscussions = useMemo(
-    () => discussions.filter((d) => d.status === 'WAITING' && (!partyId || d.party.id === partyId)),
+    () => (discussions || []).filter((d) => d.status === 'WAITING' && (!partyId || d.party.id === partyId)),
     [discussions, partyId],
   )
 
@@ -110,11 +93,11 @@ export default function CreateVotingSession() {
         </div>
         <div className="field">
           <label>Party</label>
-          {loading && <p style={{ color: 'var(--text-secondary)' }}>Loading…</p>}
-          {!loading && myParties.length === 0 && (
+          {(pLoad || dLoad) && <SkeletonText lines={2} />}
+          {!pLoad && myParties.length === 0 && (
             <p style={{ color: 'var(--text-secondary)' }}>No parties available.</p>
           )}
-          {!loading && myParties.map((p) => (
+          {!pLoad && myParties.map((p) => (
             <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <input type="radio" name="party" value={p.id} checked={partyId === p.id} onChange={() => setPartyId(p.id)} />
               {p.name}
@@ -123,19 +106,19 @@ export default function CreateVotingSession() {
         </div>
         <div className="field">
           <label>Discussions (WAITING)</label>
-          {waitingDiscussions.length === 0 && (
+          {!dLoad && waitingDiscussions.length === 0 && (
             <p style={{ color: 'var(--text-secondary)' }}>No WAITING discussions in this party.</p>
           )}
           <div style={{ display: 'grid', gap: 6 }}>
-            {waitingDiscussions.map((d) => (
+            {(dLoad ? Array.from({ length: 3 }, (_, i) => ({ id: `sk_${i}`, subject: '' })) : waitingDiscussions).map((d: any) => (
               <label key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input
+                {!dLoad && <input
                   type="checkbox"
                   value={d.id}
                   checked={discussionIds.includes(d.id)}
                   onChange={() => toggleDiscussion(d.id)}
-                />
-                {d.subject}
+                />}
+                {dLoad ? <Skeleton style={{ height: 12, width: 220 }} /> : d.subject}
               </label>
             ))}
           </div>

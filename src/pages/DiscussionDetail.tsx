@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { apiFetch } from '../lib/api'
+import { postComment, patchComment } from '../lib/comments'
+import type { Comment } from '../types'
 import { useAuth } from '../context/AuthContext'
+import { getAccessPayload } from '../lib/auth'
+import { parseApiErrorResponse, parseUnknownError } from '../lib/errors'
+import useSWR from 'swr'
+import { swrJsonFetcher } from '../lib/swr'
+import { Skeleton, SkeletonText } from '../components/Skeleton'
 
 type Party = { id: string; name: string }
 type Vote = { id: string; authorId: string; voteValue: 'AGREE' | 'DISAGREE' }
@@ -28,6 +35,13 @@ export default function DiscussionDetail() {
   const [editBody, setEditBody] = useState('')
   const [statusMsg, setStatusMsg] = useState<string | null>(null)
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+  const [comments, setComments] = useState<Comment[]>([])
+  const [commentsError, setCommentsError] = useState<string | null>(null)
+  const [commentsLoading, setCommentsLoading] = useState(false)
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
+  const [editingContent, setEditingContent] = useState('')
+  const [editError, setEditError] = useState<string | null>(null)
+  const [isCastingVote, setIsCastingVote] = useState(false)
 
   const isAuthor = useMemo(() => {
     // if token contains sub and matches some author id (not provided), we fall back to permitting edit by capability
@@ -68,9 +82,44 @@ export default function DiscussionDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
+  async function castVote(vote: 'AGREE' | 'DISAGREE') {
+    if (!id) return
+    try {
+      setIsCastingVote(true)
+      setStatusMsg(null)
+      const res = await apiFetch(`/api/discussions/${id}/vote?vote=${vote}`, { method: 'POST' })
+      if (!res.ok) {
+        setStatusMsg(await parseApiErrorResponse(res))
+        return
+      }
+      await reload()
+    } catch (e) {
+      setStatusMsg(parseUnknownError(e))
+    } finally {
+      setIsCastingVote(false)
+    }
+  }
+
+  const { data: commentsData, error: commentsErr, isLoading: commentsLoad, mutate: mutateComments } = useSWR<Comment[]>(
+    id ? `/api/discussions/${id}/comments` : null,
+    swrJsonFetcher,
+    { refreshInterval: 5000 },
+  )
+  useEffect(() => {
+    if (commentsErr) setCommentsError(String(commentsErr))
+    setCommentsLoading(Boolean(commentsLoad))
+    if (commentsData) setComments(commentsData)
+  }, [commentsData, commentsErr, commentsLoad])
+
   return (
     <div className="container container-narrow">
-      {loading && <p style={{ color: 'var(--text-secondary)' }}>Loading…</p>}
+      {loading && (
+        <div className="card" style={{ padding: 24 }}>
+          <Skeleton style={{ height: 28, width: '70%', marginBottom: 12 }} />
+          <Skeleton style={{ height: 12, width: '50%', marginBottom: 8 }} />
+          <Skeleton style={{ height: 200, width: '100%', borderRadius: 12 }} />
+        </div>
+      )}
       {error && <p style={{ color: 'var(--text-secondary)' }}>{error}</p>}
       {item && (
         <div className="card" style={{ padding: 24 }}>
@@ -117,57 +166,122 @@ export default function DiscussionDetail() {
           )}
           {statusMsg && <p style={{ marginTop: 8, color: 'var(--text-secondary)' }}>{statusMsg}</p>}
           {/* UI changes per status */}
-          {item.status === 'WAITING' && (
+          {(item.status === 'WAITING' || item.status === 'RESOLVED') && (
             <div style={{ marginTop: 16 }}>
               <label htmlFor="comment" style={{ display: 'block', marginBottom: 8 }}>Comment (optional)</label>
               <textarea id="comment" className="text-input" rows={4} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Leave your comment" />
               <div style={{ marginTop: 12 }}>
-                <button className="primary-button" onClick={() => { /* TODO: Post WAITING comment */ }}>Send</button>
+                <button className="primary-button" onClick={async () => { if (!id) return; try { setStatusMsg(null); await postComment(id, comment); setComment(''); await mutateComments() } catch (e) { setStatusMsg((e as Error).message) } }}>Send</button>
               </div>
             </div>
           )}
 
-          {item.status === 'VOTING' && (
-            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-              <button className="primary-button" onClick={() => {/* TODO: Agree vote post */}}>Agree</button>
-              <button className="primary-button" onClick={() => setShowDisagree((v) => !v)}>
-                {showDisagree ? 'Cancel' : 'Disagree'}
-              </button>
-              {showDisagree && (
-                <div style={{ marginTop: 16, width: '100%' }}>
-                  <label htmlFor="comment" style={{ display: 'block', marginBottom: 8 }}>Comment</label>
-                  <textarea id="comment" className="text-input" rows={4} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Please explain your disagreement" />
-                  <div style={{ marginTop: 8 }}>
-                    {isCommentValid ? 'Looks good.' : `${minCommentLen - trimmedLen} more characters needed.`}
-                  </div>
-                  <div style={{ marginTop: 12 }}>
-                    <button className="primary-button" disabled={!isCommentValid} onClick={() => {/* TODO: Disagree comment send */}}>Send</button>
-                  </div>
+          {item.status === 'VOTING' && (() => {
+            const currentUserId = getAccessPayload()?.sub
+            const myVote = item.votes.find((v) => v.authorId === currentUserId)
+            const agreed = myVote?.voteValue === 'AGREE'
+            const disagreed = myVote?.voteValue === 'DISAGREE'
+            const myArgument = comments.find((c) => (c as any).creator?.id === currentUserId)
+            return (
+              <>
+                <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                  <button disabled={isCastingVote} className={agreed ? 'btn btn-green' : 'btn btn-outline-green'} onClick={() => { void castVote('AGREE') }}>Agree</button>
+                  <button disabled={isCastingVote} className={disagreed ? 'btn btn-red' : 'btn btn-outline-red'} onClick={() => setShowDisagree((v) => !v)}>
+                    {showDisagree ? 'Cancel' : 'Disagree'}
+                  </button>
                 </div>
-              )}
-            </div>
-          )}
+                {showDisagree ? (
+                  <div style={{ marginTop: 16 }}>
+                    <label htmlFor="comment" style={{ display: 'block', marginBottom: 8 }}>Your argument</label>
+                    <textarea id="comment" className="text-input" rows={4} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Please explain your disagreement" />
+                    <div style={{ marginTop: 8 }}>
+                      {isCommentValid ? 'Looks good.' : `${minCommentLen - trimmedLen} more characters needed.`}
+                    </div>
+                    <div style={{ marginTop: 12 }}>
+                      <button className="primary-button" disabled={!isCommentValid || isCastingVote} onClick={async () => { if (!id) return; try { setStatusMsg(null); await castVote('DISAGREE'); await postComment(id, comment); setComment(''); await mutateComments(); setShowDisagree(false) } catch (e) { setStatusMsg(parseUnknownError(e)) } }}>Send</button>
+                    </div>
+                  </div>
+                ) : (
+                  myArgument ? (
+                    <div style={{ marginTop: 16 }}>
+                      <h3 style={{ margin: '8px 0' }}>Your argument</h3>
+                      <div className="card" style={{ padding: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ color: 'var(--text-secondary)' }}>{(myArgument as any).creator?.name}</div>
+                          <button className="link" onClick={() => { setEditingCommentId(myArgument.id); setEditingContent(myArgument.content) }}>Edit</button>
+                        </div>
+                        {editingCommentId === myArgument.id ? (
+                          <div style={{ marginTop: 8 }}>
+                            <textarea className="text-input" rows={3} value={editingContent} onChange={(e) => setEditingContent(e.target.value)} />
+                            <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+                              <button className="primary-button" onClick={async () => { try { setEditError(null); await patchComment(myArgument.id, editingContent); setEditingCommentId(null); setEditingContent(''); await mutateComments() } catch (e) { setEditError((e as Error).message) } }}>Save</button>
+                              <button className="primary-button" onClick={() => { setEditingCommentId(null); setEditingContent(''); setEditError(null) }}>Cancel</button>
+                            </div>
+                            {editError && <div style={{ marginTop: 6, color: '#b91c1c', fontSize: 12 }}>{editError}</div>}
+                          </div>
+                        ) : (
+                          <div style={{ marginTop: 8, whiteSpace: 'pre-wrap' }}>{myArgument.content}</div>
+                        )}
+                      </div>
+                    </div>
+                  ) : null
+                )}
+              </>
+            )
+          })()}
 
-          {item.status === 'FINAL_VOTING' && (
+          {item.status === 'FINAL_VOTING' && (() => {
+            const currentUserId = getAccessPayload()?.sub
+            const myVote = item.votes.find((v) => v.authorId === currentUserId)
+            const agreed = myVote?.voteValue === 'AGREE'
+            const disagreed = myVote?.voteValue === 'DISAGREE'
+            return (
             <div style={{ marginTop: 16 }}>
               <div className="card" style={{ padding: 12, marginBottom: 12 }}>
                 {/* TODO: Fetch and display final voting summary text */}
                 <strong>Final voting summary:</strong> Example: This proposal consolidates prior agreements and requests final approval.
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button className="primary-button" onClick={() => {/* TODO: Agree final vote */}}>Agree</button>
-                <button className="primary-button" onClick={() => {/* TODO: Disagree final vote */}}>Disagree</button>
+                <button disabled={isCastingVote} className={agreed ? 'btn btn-green' : 'btn btn-outline-green'} onClick={() => { void castVote('AGREE') }}>Agree</button>
+                <button disabled={isCastingVote} className={disagreed ? 'btn btn-red' : 'btn btn-outline-red'} onClick={() => { void castVote('DISAGREE') }}>Disagree</button>
               </div>
             </div>
-          )}
+            )
+          })()}
 
-          {item.status === 'RESOLVED' && (
-            <div style={{ marginTop: 16 }}>
-              <label htmlFor="comment" style={{ display: 'block', marginBottom: 8 }}>Comment (optional)</label>
-              <textarea id="comment" className="text-input" rows={4} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Leave your comment" />
-              <div style={{ marginTop: 12 }}>
-                <button className="primary-button" onClick={() => { /* TODO: Post RESOLVED comment */ }}>Send</button>
-              </div>
+          {/* Comments list for WAITING, RESOLVED, ARCHIVED (not VOTING) */}
+          {['WAITING','RESOLVED','ARCHIVED'].includes(item.status) && (
+            <div style={{ marginTop: 24 }}>
+              <h3>Comments</h3>
+              {commentsLoading && <p style={{ color: 'var(--text-secondary)' }}>Loading comments…</p>}
+              {commentsError && <p style={{ color: 'var(--text-secondary)' }}>{commentsError}</p>}
+              {!commentsLoading && !commentsError && (
+                <div style={{ display: 'grid', gap: 8 }}>
+                  {comments.length === 0 && <div style={{ color: 'var(--text-secondary)' }}>No comments yet</div>}
+                  {comments.map((c) => (
+                    <div key={c.id} className="card" style={{ padding: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ fontWeight: 600 }}>{c.creator.name} <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>({c.creator.email})</span></div>
+                        {['WAITING','VOTING','RESOLVED'].includes(item.status) && (
+                          <button className="link" onClick={() => { setEditingCommentId(c.id); setEditingContent(c.content) }}>Edit</button>
+                        )}
+                      </div>
+                      {editingCommentId === c.id ? (
+                        <div style={{ marginTop: 8 }}>
+                          <textarea className="text-input" rows={3} value={editingContent} onChange={(e) => setEditingContent(e.target.value)} />
+                          <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+                            <button className="primary-button" onClick={async () => { try { setEditError(null); await patchComment(c.id, editingContent); setEditingCommentId(null); setEditingContent(''); await reloadComments() } catch (e) { setEditError((e as Error).message) } }}>Save</button>
+                            <button className="primary-button" onClick={() => { setEditingCommentId(null); setEditingContent(''); setEditError(null) }}>Cancel</button>
+                          </div>
+                          {editError && <div style={{ marginTop: 6, color: '#b91c1c', fontSize: 12 }}>{editError}</div>}
+                        </div>
+                      ) : (
+                        <div style={{ marginTop: 8, whiteSpace: 'pre-wrap' }}>{c.content}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

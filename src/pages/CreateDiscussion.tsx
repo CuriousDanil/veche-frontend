@@ -3,6 +3,9 @@ import type { FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { apiFetch } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
+import { SkeletonText } from '../components/Skeleton'
+import useSWR from 'swr'
+import { swrJsonFetcher } from '../lib/swr'
 
 type CreateDiscussionPayload = {
   subject: string
@@ -29,27 +32,16 @@ export default function CreateDiscussion() {
   })
   const [status, setStatus] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [parties, setParties] = useState<Party[]>([])
-  const [partiesError, setPartiesError] = useState<string | null>(null)
-  const [loadingParties, setLoadingParties] = useState(true)
+  const { data: parties, error: partiesError, isLoading: loadingParties } = useSWR<Party[]>('/api/parties', swrJsonFetcher, { refreshInterval: 60000 })
 
   const myPartyIds = user?.partyIds ?? []
-  const myParties = parties.filter((p) => myPartyIds.includes(p.id))
+  const myParties = (parties || []).filter((p) => myPartyIds.includes(p.id))
 
   useEffect(() => {
-    ;(async () => {
-      try {
-        const res = await apiFetch('/api/parties')
-        if (!res.ok) throw new Error(`Failed fetching parties: ${res.status}`)
-        const data = (await res.json()) as Party[]
-        setParties(data)
-      } catch (e) {
-        setPartiesError((e as Error).message)
-      } finally {
-        setLoadingParties(false)
-      }
-    })()
-  }, [])
+    if (!form.partyId && myParties.length === 1) {
+      setForm((f) => ({ ...f, partyId: myParties[0].id }))
+    }
+  }, [parties?.length])
 
   useEffect(() => {
     if (!form.partyId && myParties.length === 1) {
@@ -101,8 +93,8 @@ export default function CreateDiscussion() {
           </button>
           {expanded && (
             <div style={{ marginTop: 8, display: 'grid', gap: 8 }}>
-              {loadingParties && <p style={{ color: 'var(--text-secondary)' }}>Loading parties…</p>}
-              {partiesError && <p style={{ color: 'var(--text-secondary)' }}>{partiesError}</p>}
+              {loadingParties && <SkeletonText lines={2} />}
+              {partiesError && <p style={{ color: 'var(--text-secondary)' }}>{String(partiesError)}</p>}
               {!loadingParties && !partiesError && myParties.length === 0 && (
                 <p style={{ color: 'var(--text-secondary)' }}>No parties found for your account.</p>
               )}

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { apiFetch } from '../lib/api'
+import useSWR from 'swr'
+import { swrJsonFetcher } from '../lib/swr'
 import { useAuth } from '../context/AuthContext'
+import { Skeleton } from '../components/Skeleton'
 
 type Party = { id: string; name: string }
 type Discussion = {
@@ -22,36 +24,25 @@ export default function Discussions() {
   const { user } = useAuth()
   const myPartyIds = user?.partyIds ?? []
   const [items, setItems] = useState<Discussion[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data, error, isLoading } = useSWR<Discussion[]>('/api/discussions', swrJsonFetcher, { refreshInterval: 5000 })
 
   const [expandedParties, setExpandedParties] = useState<Record<string, boolean>>({})
   const [expandedByStatus, setExpandedByStatus] = useState<Record<string, Record<string, boolean>>>({})
 
   useEffect(() => {
-    ;(async () => {
-      try {
-        const res = await apiFetch('/api/discussions')
-        if (!res.ok) throw new Error(`Failed: ${res.status}`)
-        const data = (await res.json()) as Discussion[]
-        setItems(data)
-        const partyDefaults: Record<string, boolean> = {}
-        const statusDefaults: Record<string, Record<string, boolean>> = {}
-        for (const d of data) {
-          const pid = d.party?.id || d.partyId || 'unknown'
-          if (myPartyIds.includes(pid)) partyDefaults[pid] = true
-          if (!statusDefaults[pid]) statusDefaults[pid] = {}
-          if (DEFAULT_EXPANDED_STATUSES.has(d.status)) statusDefaults[pid][d.status] = true
-        }
-        setExpandedParties((prev) => ({ ...partyDefaults, ...prev }))
-        setExpandedByStatus((prev) => ({ ...statusDefaults, ...prev }))
-      } catch (e) {
-        setError((e as Error).message)
-      } finally {
-        setLoading(false)
-      }
-    })()
-  }, [myPartyIds.join(',')])
+    if (!data) return
+    setItems(data)
+    const partyDefaults: Record<string, boolean> = {}
+    const statusDefaults: Record<string, Record<string, boolean>> = {}
+    for (const d of data) {
+      const pid = d.party?.id || d.partyId || 'unknown'
+      if (myPartyIds.includes(pid)) partyDefaults[pid] = true
+      if (!statusDefaults[pid]) statusDefaults[pid] = {}
+      if (DEFAULT_EXPANDED_STATUSES.has(d.status)) statusDefaults[pid][d.status] = true
+    }
+    setExpandedParties((prev) => ({ ...partyDefaults, ...prev }))
+    setExpandedByStatus((prev) => ({ ...statusDefaults, ...prev }))
+  }, [data, myPartyIds.join(',')])
 
   const grouped = useMemo(() => {
     const byParty: Record<string, { partyName: string; byStatus: Record<string, Discussion[]> }> = {}
@@ -78,9 +69,22 @@ export default function Discussions() {
         <h2 style={{ margin: 0 }}>Discussions</h2>
         <Link to="/discussions/new" className="primary-button">New discussion</Link>
       </div>
-      {loading && <p style={{ color: 'var(--text-secondary)' }}>Loading…</p>}
-      {error && <p style={{ color: 'var(--text-secondary)' }}>{error}</p>}
-      {!loading && !error && (
+      {isLoading && (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+          gap: 16,
+          paddingTop: 8,
+        }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="card" style={{ padding: 12 }}>
+              <Skeleton style={{ height: 96, borderRadius: 8 }} />
+            </div>
+          ))}
+        </div>
+      )}
+      {error && <p style={{ color: 'var(--text-secondary)' }}>{String(error)}</p>}
+      {!isLoading && !error && (
         <div style={{ display: 'grid', gap: 16 }}>
           {Object.entries(grouped).map(([pid, { partyName, byStatus }]) => {
             const total = Object.values(byStatus).reduce((acc, arr) => acc + arr.length, 0)

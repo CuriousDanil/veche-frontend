@@ -1,29 +1,19 @@
-import { useEffect, useMemo, useState } from 'react'
-import { fetchMyCompany, type Company } from '../lib/company'
+import { useMemo, useState } from 'react'
+import useSWR from 'swr'
+import { swrJsonFetcher } from '../lib/swr'
+import type { Company } from '../types'
+import { Skeleton, SkeletonText } from '../components/Skeleton'
 
 export default function CompanyPage() {
-  const [company, setCompany] = useState<Company | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data: company, error, isLoading } = useSWR<Company>('/api/company/my-company', swrJsonFetcher, { refreshInterval: 15000 })
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
-
-  useEffect(() => {
-    ;(async () => {
-      try {
-        const c = await fetchMyCompany()
-        setCompany(c)
-        if (c) {
-          const exp: Record<string, boolean> = {}
-          for (const p of c.parties) exp[p.id] = true
-          setExpanded(exp)
-        }
-      } catch (e) {
-        setError((e as Error).message)
-      } finally {
-        setLoading(false)
-      }
-    })()
-  }, [])
+  // default expand all parties once data arrives
+  useMemo(() => {
+    if (!company) return
+    const exp: Record<string, boolean> = {}
+    for (const p of company.parties) exp[p.id] = true
+    setExpanded(exp)
+  }, [company?.id])
 
   const usersByParty = useMemo(() => {
     const map: Record<string, { name: string; users: string[] }> = {}
@@ -44,8 +34,13 @@ export default function CompanyPage() {
 
   return (
     <div className="container">
-      {loading && <p style={{ color: 'var(--text-secondary)' }}>Loading…</p>}
-      {error && <p style={{ color: 'var(--text-secondary)' }}>{error}</p>}
+      {isLoading && (
+        <div className="card" style={{ padding: 16 }}>
+          <Skeleton style={{ height: 24, width: 280, marginBottom: 12 }} />
+          <SkeletonText lines={3} />
+        </div>
+      )}
+      {error && <p style={{ color: 'var(--text-secondary)' }}>{String(error)}</p>}
       {company && (
         <div>
           <h2 style={{ marginTop: 24 }}>{company.name}</h2>

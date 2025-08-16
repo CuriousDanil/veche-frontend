@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { apiFetch } from '../lib/api'
+import useSWR from 'swr'
+import { swrJsonFetcher } from '../lib/swr'
 import { useAuth } from '../context/AuthContext'
+import { Skeleton } from '../components/Skeleton'
 
 type Party = { id: string; name: string }
 type VotingSession = {
@@ -18,36 +20,24 @@ export default function VotingSessions() {
   const { user } = useAuth()
   const myPartyIds = user?.partyIds ?? []
   const [items, setItems] = useState<VotingSession[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data, error, isLoading } = useSWR<VotingSession[]>('/api/voting-sessions', swrJsonFetcher, { refreshInterval: 5000 })
 
   const [expandedParties, setExpandedParties] = useState<Record<string, boolean>>({})
   const [expandedByStatus, setExpandedByStatus] = useState<Record<string, Record<string, boolean>>>({})
 
   useEffect(() => {
-    ;(async () => {
-      try {
-        const res = await apiFetch('/api/voting-sessions')
-        if (!res.ok) throw new Error(`Failed: ${res.status}`)
-        const data = (await res.json()) as VotingSession[]
-        setItems(data)
-        // default expansions: my parties expanded, and waiting/voting/final_voting inside each
-        const partyDefaults: Record<string, boolean> = {}
-        const statusDefaults: Record<string, Record<string, boolean>> = {}
-        for (const s of data) {
-          if (myPartyIds.includes(s.party.id)) partyDefaults[s.party.id] = true
-          if (!statusDefaults[s.party.id]) statusDefaults[s.party.id] = {}
-          if (DEFAULT_EXPANDED_STATUSES.has(s.status)) statusDefaults[s.party.id][s.status] = true
-        }
-        setExpandedParties((prev) => ({ ...partyDefaults, ...prev }))
-        setExpandedByStatus((prev) => ({ ...statusDefaults, ...prev }))
-      } catch (e) {
-        setError((e as Error).message)
-      } finally {
-        setLoading(false)
-      }
-    })()
-  }, [myPartyIds.join(',')])
+    if (!data) return
+    setItems(data)
+    const partyDefaults: Record<string, boolean> = {}
+    const statusDefaults: Record<string, Record<string, boolean>> = {}
+    for (const s of data) {
+      if (myPartyIds.includes(s.party.id)) partyDefaults[s.party.id] = true
+      if (!statusDefaults[s.party.id]) statusDefaults[s.party.id] = {}
+      if (DEFAULT_EXPANDED_STATUSES.has(s.status)) statusDefaults[s.party.id][s.status] = true
+    }
+    setExpandedParties((prev) => ({ ...partyDefaults, ...prev }))
+    setExpandedByStatus((prev) => ({ ...statusDefaults, ...prev }))
+  }, [data, myPartyIds.join(',')])
 
   const grouped = useMemo(() => {
     const byParty: Record<string, { party: Party; byStatus: Record<string, VotingSession[]> }> = {}
@@ -72,9 +62,36 @@ export default function VotingSessions() {
         <h2 style={{ margin: 0 }}>Voting sessions</h2>
         <Link to="/voting-sessions/new" className="primary-button">New session</Link>
       </div>
-      {loading && <p style={{ color: 'var(--text-secondary)' }}>Loading…</p>}
-      {error && <p style={{ color: 'var(--text-secondary)' }}>{error}</p>}
-      {!loading && !error && (
+      {isLoading && (
+        <div style={{ display: 'grid', gap: 16 }}>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="card" style={{ padding: 16 }}>
+              <Skeleton style={{ height: 24, width: 220, marginBottom: 12 }} />
+              <div style={{ display: 'grid', gap: 12 }}>
+                {Array.from({ length: 2 }).map((__, j) => (
+                  <div key={j}>
+                    <Skeleton style={{ height: 18, width: 180, marginBottom: 8 }} />
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                      gap: 12,
+                      marginTop: 8,
+                    }}>
+                      {Array.from({ length: 4 }).map((___, k) => (
+                        <div key={k} className="card" style={{ padding: 12 }}>
+                          <Skeleton style={{ height: 64 }} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {error && <p style={{ color: 'var(--text-secondary)' }}>{String(error)}</p>}
+      {!isLoading && !error && (
         <div style={{ display: 'grid', gap: 16 }}>
           {Object.values(grouped).map(({ party, byStatus }) => {
             const totalInParty = Object.values(byStatus).reduce((acc, arr) => acc + arr.length, 0)

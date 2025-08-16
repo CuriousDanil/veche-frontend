@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../lib/api'
+import { parseApiErrorResponse } from '../lib/errors'
 
 type LoginPayload = {
   email: string
@@ -62,8 +63,7 @@ export default function Login() {
         credentials: 'include',
       })
       if (!response.ok) {
-        const text = await response.text()
-        throw new Error(text || `Request failed with ${response.status}`)
+        throw new Error(await parseApiErrorResponse(response))
       }
       const data = (await response.json()) as { accessToken: string }
       if (data?.accessToken) {

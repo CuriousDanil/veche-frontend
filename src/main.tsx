@@ -15,6 +15,8 @@ import VotingSessions from './pages/VotingSessions.tsx'
 import CreateVotingSession from './pages/CreateVotingSession.tsx'
 import VotingSessionDetail from './pages/VotingSessionDetail.tsx'
 import CompanyPage from './pages/Company.tsx'
+import { ErrorBoundary } from './components/ErrorBoundary.tsx'
+import TopLoader from './components/TopLoader.tsx'
 
 function withLayout(children: ReactNode) {
   return (
@@ -40,8 +42,11 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthProvider>
-      <RouterProvider router={router} />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <TopLoader />
+        <RouterProvider router={router} />
+      </AuthProvider>
+    </ErrorBoundary>
   </StrictMode>,
 )

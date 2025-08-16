@@ -1,4 +1,5 @@
 import { clearAccessToken, getAccessToken, isJwtExpired, setAccessToken } from './auth'
+import { parseApiErrorResponse } from './errors'
 
 export async function refreshAccessToken(): Promise<boolean> {
   try {
@@ -44,7 +45,13 @@ export async function apiFetch(input: RequestInfo | URL, init: ApiRequestInit = 
     }
   }
 
-  const response = await fetch(input, { ...rest, headers: combinedHeaders, credentials: isAuthEndpoint ? 'include' : rest.credentials })
+  let response: Response
+  try {
+    response = await fetch(input, { ...rest, headers: combinedHeaders, credentials: isAuthEndpoint ? 'include' : rest.credentials })
+  } catch (e) {
+    // surface network-level errors in a centralized way
+    throw new Error('NETWORK')
+  }
 
   if (response.status === 401 && !skipAuth) {
     // try once to refresh and retry

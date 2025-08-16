@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import useSWR from 'swr'
+import { swrJsonFetcher } from '../lib/swr'
 import { apiFetch } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { formatEuFromIso, formatEuFromInput, timeLeftDhM } from '../lib/datetime'
+import { Skeleton, SkeletonText } from '../components/Skeleton'
 
 type Party = { id: string; name: string }
 type Discussion = { id: string; subject: string; status: string; party: Party }
@@ -53,50 +56,27 @@ export default function VotingSessionDetail() {
   const [endsAt, setEndsAt] = useState('')
   const [statusMsg, setStatusMsg] = useState<string | null>(null)
 
+  const { data: sData, error: sErr, isLoading: sLoad } = useSWR<VotingSession>(id ? `/api/voting-sessions/${id}` : null, swrJsonFetcher, { refreshInterval: 5000 })
+  const { data: dData, error: dErr, isLoading: dLoad } = useSWR<Discussion[]>('/api/discussions', swrJsonFetcher, { refreshInterval: 5000 })
+  const { data: pData, error: pErr, isLoading: pLoad } = useSWR<Party[]>('/api/parties', swrJsonFetcher, { refreshInterval: 60000 })
   useEffect(() => {
-    ;(async () => {
-      try {
-        // Try fetching a single session detail first
-        let s: VotingSession | null = null
-        const singleRes = await apiFetch(`/api/voting-sessions/${id}`)
-        if (singleRes.ok) {
-          s = (await singleRes.json()) as VotingSession
-        } else {
-          // Fallback: fetch all and find
-          const listRes = await apiFetch('/api/voting-sessions')
-          if (!listRes.ok) throw new Error(`Sessions failed: ${listRes.status}`)
-          const sessions = (await listRes.json()) as VotingSession[]
-          s = sessions.find((x) => x.id === id) ?? null
-        }
-        if (!s) throw new Error('Session not found')
-
-        const [discRes, partyRes] = await Promise.all([
-          apiFetch('/api/discussions'),
-          apiFetch('/api/parties'),
-        ])
-        if (!discRes.ok) throw new Error(`Discussions failed: ${discRes.status}`)
-        if (!partyRes.ok) throw new Error(`Parties failed: ${partyRes.status}`)
-
-        const discussions = (await discRes.json()) as Discussion[]
-        const partiesData = (await partyRes.json()) as Party[]
-
-        setSession(s)
-        setAllDiscussions(discussions)
-        setParties(partiesData)
-        // seed edit form
-        setName(s.name)
-        setPartyId(s.party.id)
-        setSelectedDiscussionIds((s.discussions || []).map((d) => d.id))
-        setFirstRound(toInputValue(s.firstRoundStart))
-        setSecondRound(toInputValue(s.secondRoundStart))
-        setEndsAt(toInputValue(s.endTime))
-      } catch (e) {
-        setError((e as Error).message)
-      } finally {
-        setLoading(false)
-      }
-    })()
-  }, [id])
+    try {
+      if (!sData || !dData || !pData) return
+      setSession(sData)
+      setAllDiscussions(dData)
+      setParties(pData)
+      setName(sData.name)
+      setPartyId(sData.party.id)
+      setSelectedDiscussionIds((sData.discussions || []).map((d) => d.id))
+      setFirstRound(toInputValue(sData.firstRoundStart))
+      setSecondRound(toInputValue(sData.secondRoundStart))
+      setEndsAt(toInputValue(sData.endTime))
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }, [sData, dData, pData])
 
   const myPartyIds = user?.partyIds ?? []
   const editableParties = useMemo(() => parties.filter((p) => myPartyIds.includes(p.id)), [parties, myPartyIds.join(',')])
@@ -156,8 +136,14 @@ export default function VotingSessionDetail() {
 
   return (
     <div className="container container-narrow">
-      {loading && <p style={{ color: 'var(--text-secondary)' }}>Loading…</p>}
-      {error && <p style={{ color: 'var(--text-secondary)' }}>{error}</p>}
+      {(sLoad || dLoad || pLoad) && (
+        <div className="card" style={{ padding: 24 }}>
+          <Skeleton style={{ height: 28, width: '60%', marginBottom: 16 }} />
+          <Skeleton style={{ height: 20, width: '40%', marginBottom: 12 }} />
+          <Skeleton style={{ height: 180, width: '100%', borderRadius: 12 }} />
+        </div>
+      )}
+      {(sErr || dErr || pErr || error) && <p style={{ color: 'var(--text-secondary)' }}>{String(sErr || dErr || pErr || error)}</p>}
       {session && (
         <div className="card" style={{ padding: 24 }}>
           {/* Header and edit action */}
