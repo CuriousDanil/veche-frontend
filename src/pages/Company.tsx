@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import useSWR from 'swr'
 import { swrJsonFetcher } from '../lib/swr'
 import type { Company } from '../types'
@@ -6,14 +7,6 @@ import { Skeleton, SkeletonText } from '../components/Skeleton'
 
 export default function CompanyPage() {
   const { data: company, error, isLoading } = useSWR<Company>('/api/company/my-company', swrJsonFetcher, { refreshInterval: 15000 })
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
-  // default expand all parties once data arrives
-  useMemo(() => {
-    if (!company) return
-    const exp: Record<string, boolean> = {}
-    for (const p of company.parties) exp[p.id] = true
-    setExpanded(exp)
-  }, [company?.id])
 
   const usersByParty = useMemo(() => {
     const map: Record<string, { name: string; users: string[] }> = {}
@@ -28,10 +21,6 @@ export default function CompanyPage() {
     return map
   }, [company])
 
-  function toggle(pid: string) {
-    setExpanded((e) => ({ ...e, [pid]: !e[pid] }))
-  }
-
   return (
     <div className="container">
       {isLoading && (
@@ -43,22 +32,49 @@ export default function CompanyPage() {
       {error && <p style={{ color: 'var(--text-secondary)' }}>{String(error)}</p>}
       {company && (
         <div>
-          <h2 style={{ marginTop: 24 }}>{company.name}</h2>
-          <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
-            {Object.entries(usersByParty).map(([pid, group]) => (
-              <div key={pid} className="card" style={{ padding: 12 }}>
-                <button className="link" onClick={() => toggle(pid)} style={{ fontWeight: 600 }}>
-                  {expanded[pid] ? '▼' : '►'} {group.name} ({group.users.length})
-                </button>
-                {expanded[pid] && (
-                  <ul style={{ marginTop: 8 }}>
-                    {group.users.map((u, idx) => (
-                      <li key={idx}>{u}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            ))}
+          <div className="mt-6 mb-4" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h2>{company.name}</h2>
+            <Link to="/company/parties/new" className="primary-button">Create party</Link>
+          </div>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gap: 'var(--space-lg)',
+            marginTop: 'var(--space-lg)',
+            gridAutoFlow: 'dense',
+          }}>
+            {Object.entries(usersByParty).map(([pid, group]) => {
+              const size = group.users.length
+              const spanCols = size > 8 ? 2 : 1
+              return (
+                <div key={pid} className="card" style={{ gridColumn: `span ${spanCols}` }}>
+                  <div className="field">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-md)' }}>
+                      <h3 className="font-semibold">{group.name}</h3>
+                      <div className="button-group">
+                        <button className="secondary-button" type="button">Add user</button>
+                        <button className="secondary-button" type="button">Edit party</button>
+                      </div>
+                    </div>
+                    <div className="text-tertiary mb-3" style={{ fontSize: 'var(--text-sm)' }}>
+                      {group.users.length} member{group.users.length !== 1 ? 's' : ''}
+                    </div>
+                    <div style={{ display: 'grid', gap: 'var(--space-xs)', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+                      {group.users.map((u, idx) => (
+                        <div key={idx} className="text-secondary" style={{ 
+                          padding: 'var(--space-xs) var(--space-sm)',
+                          background: 'var(--border-light)',
+                          borderRadius: 'var(--radius)',
+                          fontSize: 'var(--text-sm)'
+                        }}>
+                          {u}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

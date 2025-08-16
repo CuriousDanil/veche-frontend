@@ -81,20 +81,20 @@ export default function Login() {
 
   return (
     <div className="container container-narrow">
-      <div style={{ paddingTop: 48, paddingBottom: 24 }}>
-        <h2 style={{ fontSize: 32, margin: 0 }}>Log in</h2>
-        <p style={{ marginTop: 8, color: 'var(--text-secondary)' }}>Welcome back to Veche.</p>
+      <div className="mt-8 mb-6 text-center">
+        <h2>Log in</h2>
+        <p className="text-secondary mt-2">Welcome back to Veche.</p>
       </div>
       <form className="form card" onSubmit={submit}>
         <div className="field">
           <label htmlFor="email">Email</label>
           <input id="email" className="text-input" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-          <div style={{ color: emailHintColor, fontSize: 12 }}>{emailMessage}</div>
+          <div style={{ color: emailHintColor, fontSize: 'var(--text-xs)' }}>{emailMessage}</div>
         </div>
         <div className="field">
           <label htmlFor="password">Password</label>
           <input id="password" className="text-input" type="password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-          <div style={{ display: 'grid', gap: 4, fontSize: 12, marginTop: 6 }}>
+          <div style={{ display: 'grid', gap: 'var(--space-xs)', fontSize: 'var(--text-xs)', marginTop: 'var(--space-sm)' }}>
             <div style={{ color: reqColor(len >= minLen) }}>
               At least {minLen} characters{len < minLen ? ` — ${remaining} more symbols` : ''}
             </div>
@@ -103,16 +103,16 @@ export default function Login() {
             <div style={{ color: reqColor(hasSpecial) }}>At least 1 special character</div>
           </div>
         </div>
-        <div style={{ marginTop: 8 }}>
+        <div className="mt-2">
           <button className="primary-button" type="submit" disabled={isSubmitting}>
             {isSubmitting ? 'Signing in…' : 'Sign in'}
           </button>
         </div>
       </form>
       {status && (
-        <p style={{ marginTop: 16, color: 'var(--text-secondary)' }}>{status}</p>
+        <p className="mt-4 text-secondary">{status}</p>
       )}
-      <p style={{ marginTop: 16, color: 'var(--text-secondary)' }}>
+      <p className="mt-4 text-secondary text-center">
         New to Veche? <Link to="/register" className="link">Create an account</Link>
       </p>
     </div>

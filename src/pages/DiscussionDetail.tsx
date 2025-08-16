@@ -8,10 +8,11 @@ import { getAccessPayload } from '../lib/auth'
 import { parseApiErrorResponse, parseUnknownError } from '../lib/errors'
 import useSWR from 'swr'
 import { swrJsonFetcher } from '../lib/swr'
-import { Skeleton, SkeletonText } from '../components/Skeleton'
+import { Skeleton } from '../components/Skeleton'
 
 type Party = { id: string; name: string }
 type Vote = { id: string; authorId: string; voteValue: 'AGREE' | 'DISAGREE' }
+type ActionItem = { id: string; actionType: string; payload: string }
 type Discussion = {
   id: string
   subject: string
@@ -20,6 +21,7 @@ type Discussion = {
   creatorName: string
   status: 'WAITING' | 'VOTING' | 'FINAL_VOTING' | 'RESOLVED' | 'ARCHIVED'
   votes: Vote[]
+  actions?: ActionItem[]
 }
 
 export default function DiscussionDetail() {
@@ -42,6 +44,9 @@ export default function DiscussionDetail() {
   const [editingContent, setEditingContent] = useState('')
   const [editError, setEditError] = useState<string | null>(null)
   const [isCastingVote, setIsCastingVote] = useState(false)
+  // Actions (rename party/company)
+  const [actionType, setActionType] = useState<'NONE' | 'RENAME_PARTY' | 'RENAME_COMPANY'>('NONE')
+  const [actionName, setActionName] = useState('')
 
   const isAuthor = useMemo(() => {
     // if token contains sub and matches some author id (not provided), we fall back to permitting edit by capability
@@ -122,46 +127,166 @@ export default function DiscussionDetail() {
       )}
       {error && <p style={{ color: 'var(--text-secondary)' }}>{error}</p>}
       {item && (
-        <div className="card" style={{ padding: 24 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            {!isEditing ? (
-              <h2 style={{ marginTop: 0, marginBottom: 8 }}>{item.subject}</h2>
-            ) : (
-              <input className="text-input" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
-            )}
+        <div className="mt-8">
+          {/* Header Section */}
+          <div className="mb-6" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-lg)' }}>
+            <div style={{ flex: 1 }}>
+              {!isEditing ? (
+                <div>
+                  <h2 className="mb-2">{item.subject}</h2>
+                  <div className="mb-3">
+                    <span className={`status-badge ${item.status.toLowerCase().replace('_', '-')}`}>
+                      {item.status.replace('_', ' ')}
+                    </span>
+                  </div>
+                  <div className="text-secondary">
+                    by {item.creatorName} • {item.party.name}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <input 
+                    className="text-input mb-3" 
+                    value={editTitle} 
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    style={{ fontSize: 'var(--text-2xl)', fontWeight: 600 }}
+                  />
+                </div>
+              )}
+            </div>
             {isAuthor && (
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div className="button-group">
                 {!isEditing ? (
-                  <button className="primary-button" onClick={() => setIsEditing(true)}>Edit</button>
+                  <button className="secondary-button" onClick={() => setIsEditing(true)}>Edit</button>
                 ) : (
                   <>
                     <button className="primary-button" onClick={async () => { /* TODO: save title/body via PATCH if supported */ setIsEditing(false); }}>Save</button>
-                    <button className="primary-button" onClick={() => { setIsEditing(false); setEditTitle(item.subject); setEditBody(item.content); }}>Cancel</button>
+                    <button className="secondary-button" onClick={() => { setIsEditing(false); setEditTitle(item.subject); setEditBody(item.content); }}>Cancel</button>
                   </>
                 )}
               </div>
             )}
           </div>
-          {!isEditing ? (
-            <p style={{ whiteSpace: 'pre-wrap' }}>{item.content}</p>
-          ) : (
-            <textarea className="text-input" rows={6} value={editBody} onChange={(e) => setEditBody(e.target.value)} />
+          
+          {/* Content Section */}
+          <div className="card">
+            <div className="field">
+              <label>Discussion content</label>
+              {!isEditing ? (
+                <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{item.content}</div>
+              ) : (
+                <textarea 
+                  className="text-input" 
+                  rows={6} 
+                  value={editBody} 
+                  onChange={(e) => setEditBody(e.target.value)} 
+                />
+              )}
+            </div>
+          </div>
+
+          {/* Add action menu */}
+          {isAuthor && (
+            <div className="card mt-6">
+              <div className="field">
+                <label>Add action</label>
+                <select className="select-input" value={actionType} onChange={(e) => setActionType(e.target.value as any)}>
+                  <option value="NONE">Select an action…</option>
+                  <option value="RENAME_PARTY">Rename party</option>
+                  <option value="RENAME_COMPANY">Rename company</option>
+                </select>
+                {(actionType === 'RENAME_PARTY' || actionType === 'RENAME_COMPANY') && (
+                  <div className="mt-3">
+                    <input 
+                      className="text-input" 
+                      placeholder="Enter new name" 
+                      value={actionName} 
+                      onChange={(e) => setActionName(e.target.value)} 
+                    />
+                    <button
+                      className="primary-button mt-3"
+                      onClick={async () => {
+                        if (!id) return
+                        if (!actionName.trim()) { setStatusMsg('Enter new name'); return }
+                        try {
+                          setStatusMsg(null)
+                          const companyId = getAccessPayload()?.companyId
+                          const payload = actionType === 'RENAME_PARTY'
+                            ? { type: 'RENAME_PARTY', partyId: item.party.id, newName: actionName }
+                            : { type: 'RENAME_COMPANY', companyId, newName: actionName }
+                          const res = await apiFetch(`/api/discussions/${id}/action`, {
+                            method: 'POST',
+                            body: JSON.stringify(payload),
+                          })
+                          if (!res.ok) {
+                            setStatusMsg(await parseApiErrorResponse(res))
+                            return
+                          }
+                          setStatusMsg('Action added')
+                          setActionType('NONE')
+                          setActionName('')
+                        } catch (e) {
+                          setStatusMsg(parseUnknownError(e))
+                        }
+                      }}
+                    >Add action</button>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
 
-          {/* Status display */}
-          <div style={{ marginTop: 8 }}>
-            <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 4 }}>Status</label>
-            <div style={{ fontWeight: 500 }}>{item.status}</div>
-          </div>
+          {/* Existing actions */}
+          {item.actions && item.actions.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <h3>Actions</h3>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {item.actions.map((a) => {
+                  let friendly = a.actionType
+                  try {
+                    const p = JSON.parse(a.payload || '{}') as any
+                    switch (a.actionType) {
+                      case 'RENAME_PARTY':
+                        friendly = `Rename party to "${p?.newName ?? ''}"`
+                        break
+                      case 'RENAME_COMPANY':
+                        friendly = `Rename company to "${p?.newName ?? ''}"`
+                        break
+                      case 'EVICT_USER_FROM_PARTY':
+                        friendly = `Evict user ${p?.userId ?? ''} from party ${p?.partyId ?? ''}`
+                        break
+                      case 'ADD_USER_TO_PARTY':
+                        friendly = `Add user ${p?.userId ?? ''} to party ${p?.partyId ?? ''}`
+                        break
+                      default:
+                        friendly = `${a.actionType}`
+                    }
+                  } catch {
+                    friendly = `${a.actionType}`
+                  }
+                  return (
+                    <div key={a.id} className="card" style={{ padding: 12 }}>
+                      {friendly}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Status control */}
           {isAuthor && (
-            <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button className="primary-button" disabled={isUpdatingStatus} onClick={async () => { try { setIsUpdatingStatus(true); await apiFetch(`/api/discussions/${id}/wait`, { method: 'POST' }); await reload(); setStatusMsg('Status changed to WAITING'); } finally { setIsUpdatingStatus(false) } }}>Set WAITING</button>
-              <button className="primary-button" disabled={isUpdatingStatus} onClick={async () => { try { setIsUpdatingStatus(true); await apiFetch(`/api/discussions/${id}/voting`, { method: 'POST' }); await reload(); setStatusMsg('Status changed to VOTING'); } finally { setIsUpdatingStatus(false) } }}>Set VOTING</button>
-              <button className="primary-button" disabled={isUpdatingStatus} onClick={async () => { try { setIsUpdatingStatus(true); await apiFetch(`/api/discussions/${id}/final-voting`, { method: 'POST' }); await reload(); setStatusMsg('Status changed to FINAL_VOTING'); } finally { setIsUpdatingStatus(false) } }}>Set FINAL_VOTING</button>
-              <button className="primary-button" disabled={isUpdatingStatus} onClick={async () => { try { setIsUpdatingStatus(true); await apiFetch(`/api/discussions/${id}/resolve`, { method: 'POST' }); await reload(); setStatusMsg('Status changed to RESOLVED'); } finally { setIsUpdatingStatus(false) } }}>Set RESOLVED</button>
-              <button className="primary-button" disabled={isUpdatingStatus} onClick={async () => { try { setIsUpdatingStatus(true); await apiFetch(`/api/discussions/${id}/archive`, { method: 'POST' }); await reload(); setStatusMsg('Status changed to ARCHIVED'); } finally { setIsUpdatingStatus(false) } }}>Set ARCHIVED</button>
+            <div className="card mt-6">
+              <div className="field">
+                <label>Change status</label>
+                <div className="button-group stacked">
+                  <button className="secondary-button" disabled={isUpdatingStatus} onClick={async () => { try { setIsUpdatingStatus(true); await apiFetch(`/api/discussions/${id}/wait`, { method: 'POST' }); await reload(); setStatusMsg('Status changed to WAITING'); } finally { setIsUpdatingStatus(false) } }}>Set WAITING</button>
+                  <button className="secondary-button" disabled={isUpdatingStatus} onClick={async () => { try { setIsUpdatingStatus(true); await apiFetch(`/api/discussions/${id}/voting`, { method: 'POST' }); await reload(); setStatusMsg('Status changed to VOTING'); } finally { setIsUpdatingStatus(false) } }}>Set VOTING</button>
+                  <button className="secondary-button" disabled={isUpdatingStatus} onClick={async () => { try { setIsUpdatingStatus(true); await apiFetch(`/api/discussions/${id}/final-voting`, { method: 'POST' }); await reload(); setStatusMsg('Status changed to FINAL_VOTING'); } finally { setIsUpdatingStatus(false) } }}>Set FINAL VOTING</button>
+                  <button className="secondary-button" disabled={isUpdatingStatus} onClick={async () => { try { setIsUpdatingStatus(true); await apiFetch(`/api/discussions/${id}/resolve`, { method: 'POST' }); await reload(); setStatusMsg('Status changed to RESOLVED'); } finally { setIsUpdatingStatus(false) } }}>Set RESOLVED</button>
+                  <button className="secondary-button" disabled={isUpdatingStatus} onClick={async () => { try { setIsUpdatingStatus(true); await apiFetch(`/api/discussions/${id}/archive`, { method: 'POST' }); await reload(); setStatusMsg('Status changed to ARCHIVED'); } finally { setIsUpdatingStatus(false) } }}>Set ARCHIVED</button>
+                </div>
+              </div>
             </div>
           )}
           {statusMsg && <p style={{ marginTop: 8, color: 'var(--text-secondary)' }}>{statusMsg}</p>}
@@ -270,7 +395,7 @@ export default function DiscussionDetail() {
                         <div style={{ marginTop: 8 }}>
                           <textarea className="text-input" rows={3} value={editingContent} onChange={(e) => setEditingContent(e.target.value)} />
                           <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-                            <button className="primary-button" onClick={async () => { try { setEditError(null); await patchComment(c.id, editingContent); setEditingCommentId(null); setEditingContent(''); await reloadComments() } catch (e) { setEditError((e as Error).message) } }}>Save</button>
+                            <button className="primary-button" onClick={async () => { try { setEditError(null); await patchComment(c.id, editingContent); setEditingCommentId(null); setEditingContent(''); await mutateComments() } catch (e) { setEditError((e as Error).message) } }}>Save</button>
                             <button className="primary-button" onClick={() => { setEditingCommentId(null); setEditingContent(''); setEditError(null) }}>Cancel</button>
                           </div>
                           {editError && <div style={{ marginTop: 6, color: '#b91c1c', fontSize: 12 }}>{editError}</div>}

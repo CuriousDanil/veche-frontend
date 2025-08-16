@@ -6,6 +6,7 @@ import { apiFetch } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { formatEuFromIso, formatEuFromInput, timeLeftDhM } from '../lib/datetime'
 import { Skeleton, SkeletonText } from '../components/Skeleton'
+import DateTimePicker from '../components/DateTimePicker'
 
 type Party = { id: string; name: string }
 type Discussion = { id: string; subject: string; status: string; party: Party }
@@ -137,139 +138,204 @@ export default function VotingSessionDetail() {
   return (
     <div className="container container-narrow">
       {(sLoad || dLoad || pLoad) && (
-        <div className="card" style={{ padding: 24 }}>
+        <div className="card">
           <Skeleton style={{ height: 28, width: '60%', marginBottom: 16 }} />
           <Skeleton style={{ height: 20, width: '40%', marginBottom: 12 }} />
           <Skeleton style={{ height: 180, width: '100%', borderRadius: 12 }} />
         </div>
       )}
-      {(sErr || dErr || pErr || error) && <p style={{ color: 'var(--text-secondary)' }}>{String(sErr || dErr || pErr || error)}</p>}
+      {(sErr || dErr || pErr || error) && <p className="text-secondary">{String(sErr || dErr || pErr || error)}</p>}
       {session && (
-        <div className="card" style={{ padding: 24 }}>
+        <div className="mt-8">
           {/* Header and edit action */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div className="mb-6" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-md)' }}>
             {isEditing ? (
-              <input className="text-input" value={name} onChange={(e) => setName(e.target.value)} />
+              <input 
+                className="text-input" 
+                value={name} 
+                onChange={(e) => setName(e.target.value)}
+                style={{ fontSize: 'var(--text-2xl)', fontWeight: 600 }}
+              />
             ) : (
-              <h2 style={{ margin: 0 }}>{session.name}</h2>
+              <div>
+                <h2>{session.name}</h2>
+                <div className="mt-1">
+                  <span className={`status-badge ${session.status.toLowerCase().replace('_', '-')}`}>
+                    {session.status.replace('_', ' ')}
+                  </span>
+                </div>
+              </div>
             )}
             {canEdit && (
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div className="button-group">
                 {!isEditing ? (
-                  <button className="primary-button" onClick={startEdit}>Edit</button>
+                  <button className="secondary-button" onClick={startEdit}>Edit</button>
                 ) : (
                   <>
                     <button className="primary-button" onClick={saveEdit}>Save</button>
-                    <button className="primary-button" onClick={cancelEdit}>Cancel</button>
+                    <button className="secondary-button" onClick={cancelEdit}>Cancel</button>
                   </>
                 )}
               </div>
             )}
           </div>
+          
+          <div className="card">
+            <div className="form">{/* This will wrap all the form fields */}
 
-          {/* Party */}
-          <div style={{ marginTop: 12 }}>
-            <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 6 }}>Party</label>
-            {!isEditing ? (
-              <div>{session.party.name}</div>
-            ) : (
-              <div style={{ display: 'grid', gap: 6 }}>
-                {editableParties.map((p) => (
-                  <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <input type="radio" name="party" value={p.id} checked={partyId === p.id} onChange={() => setPartyId(p.id)} />
-                    {p.name}
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
+            {/* Party */}
+            <div className="field">
+              <label>Party</label>
+              {!isEditing ? (
+                <div className="font-medium">{session.party.name}</div>
+              ) : (
+                <div className="radio-group">
+                  {editableParties.map((p) => (
+                    <label key={p.id} className={`radio-option ${partyId === p.id ? 'selected' : ''}`}>
+                      <input 
+                        type="radio" 
+                        name="party" 
+                        value={p.id} 
+                        checked={partyId === p.id} 
+                        onChange={() => setPartyId(p.id)} 
+                      />
+                      <span className="font-medium">{p.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
 
-          {/* Timestamps */}
-          <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
-            <div>
-              <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 6 }}>First round starts at (UTC)</label>
+            {/* Timestamps */}
+            <div className="field">
+              <label>First round starts at</label>
               {!isEditing ? (
                 <div>
-                  {formatEuFromIso(session.firstRoundStart)}
+                  <div className="font-medium">{formatEuFromIso(session.firstRoundStart)}</div>
                   {session.firstRoundStart && (
-                    <span style={{ color: 'var(--text-secondary)', marginLeft: 8 }}>({timeLeftDhM(session.firstRoundStart)} left)</span>
+                    <div className="text-tertiary mt-1" style={{ fontSize: 'var(--text-xs)' }}>
+                      {timeLeftDhM(session.firstRoundStart)} remaining
+                    </div>
                   )}
                 </div>
               ) : (
-                <>
-                  <input type="datetime-local" className="text-input" value={firstRound} onChange={(e) => setFirstRound(e.target.value)} />
-                  <div style={{ color: 'var(--text-secondary)', fontSize: 12, marginTop: 4 }}>{formatEuFromInput(firstRound)}</div>
-                </>
+                <div>
+                  <DateTimePicker
+                    value={firstRound}
+                    onChange={setFirstRound}
+                  />
+                  <div className="text-tertiary mt-2" style={{ fontSize: 'var(--text-xs)' }}>
+                    Preview: {formatEuFromInput(firstRound)}
+                  </div>
+                </div>
               )}
             </div>
-            <div>
-              <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 6 }}>Second round starts at (UTC)</label>
+            
+            <div className="field">
+              <label>Second round starts at</label>
               {!isEditing ? (
                 <div>
-                  {formatEuFromIso(session.secondRoundStart)}
+                  <div className="font-medium">{formatEuFromIso(session.secondRoundStart)}</div>
                   {session.secondRoundStart && (
-                    <span style={{ color: 'var(--text-secondary)', marginLeft: 8 }}>({timeLeftDhM(session.secondRoundStart)} left)</span>
+                    <div className="text-tertiary mt-1" style={{ fontSize: 'var(--text-xs)' }}>
+                      {timeLeftDhM(session.secondRoundStart)} remaining
+                    </div>
                   )}
                 </div>
               ) : (
-                <>
-                  <input type="datetime-local" className="text-input" value={secondRound} onChange={(e) => setSecondRound(e.target.value)} />
-                  <div style={{ color: 'var(--text-secondary)', fontSize: 12, marginTop: 4 }}>{formatEuFromInput(secondRound)}</div>
-                </>
+                <div>
+                  <DateTimePicker
+                    value={secondRound}
+                    onChange={setSecondRound}
+                  />
+                  <div className="text-tertiary mt-2" style={{ fontSize: 'var(--text-xs)' }}>
+                    Preview: {formatEuFromInput(secondRound)}
+                  </div>
+                </div>
               )}
             </div>
-            <div>
-              <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 6 }}>Ends at (UTC)</label>
+            
+            <div className="field">
+              <label>Session ends at</label>
               {!isEditing ? (
                 <div>
-                  {formatEuFromIso(session.endTime)}
+                  <div className="font-medium">{formatEuFromIso(session.endTime)}</div>
                   {session.endTime && (
-                    <span style={{ color: 'var(--text-secondary)', marginLeft: 8 }}>({timeLeftDhM(session.endTime)} left)</span>
+                    <div className="text-tertiary mt-1" style={{ fontSize: 'var(--text-xs)' }}>
+                      {timeLeftDhM(session.endTime)} remaining
+                    </div>
                   )}
                 </div>
               ) : (
-                <>
-                  <input type="datetime-local" className="text-input" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
-                  <div style={{ color: 'var(--text-secondary)', fontSize: 12, marginTop: 4 }}>{formatEuFromInput(endsAt)}</div>
-                </>
+                <div>
+                  <DateTimePicker
+                    value={endsAt}
+                    onChange={setEndsAt}
+                  />
+                  <div className="text-tertiary mt-2" style={{ fontSize: 'var(--text-xs)' }}>
+                    Preview: {formatEuFromInput(endsAt)}
+                  </div>
+                </div>
               )}
             </div>
-          </div>
 
-          {/* Discussions */}
-          <div style={{ marginTop: 20 }}>
-            <label style={{ display: 'block', color: 'var(--text-secondary)', marginBottom: 6 }}>Discussions</label>
-            {!isEditing ? (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                gap: 12,
-              }}>
-                {session.discussions.map((d) => (
-                  <Link key={d.id} to={`/discussions/${d.id}`} className="card" style={{ padding: 12, textDecoration: 'none' }}>
-                    <div style={{ fontWeight: 600 }}>{d.subject}</div>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gap: 6 }}>
-                {poolDiscussions.map((d) => (
-                  <label key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <input
-                      type="checkbox"
-                      value={d.id}
-                      checked={selectedDiscussionIds.includes(d.id)}
-                      onChange={() => toggleDiscussion(d.id)}
-                    />
-                    <span>{d.subject}</span>
-                    <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>({d.status})</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {statusMsg && <p style={{ marginTop: 12, color: 'var(--text-secondary)' }}>{statusMsg}</p>}
+            {/* Discussions */}
+            <div className="field">
+              <label>Discussions ({session.discussions.length})</label>
+              {!isEditing ? (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                  gap: 'var(--space-md)',
+                }}>
+                  {session.discussions.map((d) => (
+                    <Link 
+                      key={d.id} 
+                      to={`/discussions/${d.id}`} 
+                      className="card" 
+                      style={{ 
+                        padding: 'var(--space-md)', 
+                        textDecoration: 'none',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 'var(--space-xs)'
+                      }}
+                    >
+                      <div className="font-semibold">{d.subject}</div>
+                      <span className={`status-badge ${d.status.toLowerCase().replace('_', '-')}`}>
+                        {d.status.replace('_', ' ')}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="checkbox-group">
+                  {poolDiscussions.map((d) => (
+                    <label 
+                      key={d.id} 
+                      className={`checkbox-option ${selectedDiscussionIds.includes(d.id) ? 'selected' : ''}`}
+                    >
+                      <input
+                        type="checkbox"
+                        value={d.id}
+                        checked={selectedDiscussionIds.includes(d.id)}
+                        onChange={() => toggleDiscussion(d.id)}
+                      />
+                      <div>
+                        <div className="font-medium">{d.subject}</div>
+                        <div className="text-tertiary" style={{ fontSize: 'var(--text-xs)' }}>
+                          Status: {d.status}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            </div> {/* End form */}
+            {statusMsg && <p className="mt-4 text-secondary">{statusMsg}</p>}
+          </div> {/* End card */}
         </div>
       )}
     </div>

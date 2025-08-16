@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import useSWR from 'swr'
 import { swrJsonFetcher } from '../lib/swr'
@@ -11,131 +11,136 @@ type VotingSession = {
   name: string
   party: Party
   status: 'WAITING' | 'VOTING' | 'FINAL_VOTING' | 'RESOLVED' | 'ARCHIVED'
+  firstRoundStart?: string | null
+  secondRoundStart?: string | null
+  endTime?: string | null
 }
-
-const STATUS_ORDER: VotingSession['status'][] = ['WAITING', 'VOTING', 'FINAL_VOTING', 'RESOLVED', 'ARCHIVED']
-const DEFAULT_EXPANDED_STATUSES = new Set(['WAITING', 'VOTING', 'FINAL_VOTING'])
 
 export default function VotingSessions() {
   const { user } = useAuth()
   const myPartyIds = user?.partyIds ?? []
-  const [items, setItems] = useState<VotingSession[]>([])
+  const [gridCols, setGridCols] = useState(3)
   const { data, error, isLoading } = useSWR<VotingSession[]>('/api/voting-sessions', swrJsonFetcher, { refreshInterval: 5000 })
 
-  const [expandedParties, setExpandedParties] = useState<Record<string, boolean>>({})
-  const [expandedByStatus, setExpandedByStatus] = useState<Record<string, Record<string, boolean>>>({})
-
-  useEffect(() => {
-    if (!data) return
-    setItems(data)
-    const partyDefaults: Record<string, boolean> = {}
-    const statusDefaults: Record<string, Record<string, boolean>> = {}
-    for (const s of data) {
-      if (myPartyIds.includes(s.party.id)) partyDefaults[s.party.id] = true
-      if (!statusDefaults[s.party.id]) statusDefaults[s.party.id] = {}
-      if (DEFAULT_EXPANDED_STATUSES.has(s.status)) statusDefaults[s.party.id][s.status] = true
+  const groupedByParty = useMemo(() => {
+    if (!data) return {}
+    const byParty: Record<string, { party: Party; sessions: VotingSession[] }> = {}
+    
+    for (const session of data) {
+      const partyId = session.party.id
+      
+      if (!byParty[partyId]) {
+        byParty[partyId] = { party: session.party, sessions: [] }
+      }
+      byParty[partyId].sessions.push(session)
     }
-    setExpandedParties((prev) => ({ ...partyDefaults, ...prev }))
-    setExpandedByStatus((prev) => ({ ...statusDefaults, ...prev }))
-  }, [data, myPartyIds.join(',')])
-
-  const grouped = useMemo(() => {
-    const byParty: Record<string, { party: Party; byStatus: Record<string, VotingSession[]> }> = {}
-    for (const s of items) {
-      if (!byParty[s.party.id]) byParty[s.party.id] = { party: s.party, byStatus: {} }
-      if (!byParty[s.party.id].byStatus[s.status]) byParty[s.party.id].byStatus[s.status] = []
-      byParty[s.party.id].byStatus[s.status].push(s)
-    }
+    
     return byParty
-  }, [items])
+  }, [data])
 
-  function toggleParty(partyId: string) {
-    setExpandedParties((m) => ({ ...m, [partyId]: !m[partyId] }))
-  }
-  function toggleStatus(partyId: string, status: string) {
-    setExpandedByStatus((m) => ({ ...m, [partyId]: { ...(m[partyId] || {}), [status]: !(m[partyId]?.[status]) } }))
+  const formatTimeInfo = (session: VotingSession) => {
+    if (session.status === 'WAITING' && session.firstRoundStart) {
+      const date = new Date(session.firstRoundStart)
+      return `Starts ${date.toLocaleDateString()}`
+    }
+    if (session.endTime) {
+      const date = new Date(session.endTime)
+      return `Ends ${date.toLocaleDateString()}`
+    }
+    return null
   }
 
   return (
     <div className="container">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 32, paddingBottom: 16 }}>
-        <h2 style={{ margin: 0 }}>Voting sessions</h2>
-        <Link to="/voting-sessions/new" className="primary-button">New session</Link>
-      </div>
-      {isLoading && (
-        <div style={{ display: 'grid', gap: 16 }}>
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="card" style={{ padding: 16 }}>
-              <Skeleton style={{ height: 24, width: 220, marginBottom: 12 }} />
-              <div style={{ display: 'grid', gap: 12 }}>
-                {Array.from({ length: 2 }).map((__, j) => (
-                  <div key={j}>
-                    <Skeleton style={{ height: 18, width: 180, marginBottom: 8 }} />
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-                      gap: 12,
-                      marginTop: 8,
-                    }}>
-                      {Array.from({ length: 4 }).map((___, k) => (
-                        <div key={k} className="card" style={{ padding: 12 }}>
-                          <Skeleton style={{ height: 64 }} />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+      <div className="mt-8 mb-6" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h2>Voting sessions</h2>
+        <div className="grid-controls">
+          {[1, 2, 3, 4].map(cols => (
+            <button
+              key={cols}
+              className={`grid-control-button ${gridCols === cols ? 'active' : ''}`}
+              onClick={() => setGridCols(cols)}
+            >
+              {cols}
+            </button>
           ))}
         </div>
-      )}
-      {error && <p style={{ color: 'var(--text-secondary)' }}>{String(error)}</p>}
-      {!isLoading && !error && (
-        <div style={{ display: 'grid', gap: 16 }}>
-          {Object.values(grouped).map(({ party, byStatus }) => {
-            const totalInParty = Object.values(byStatus).reduce((acc, arr) => acc + arr.length, 0)
-            const isPartyOpen = !!expandedParties[party.id]
-            return (
-              <div key={party.id} className="card" style={{ padding: 16 }}>
-                <button className="link" onClick={() => toggleParty(party.id)} style={{ fontWeight: 600 }}>
-                  {isPartyOpen ? '▼' : '►'} {party.name} ({totalInParty})
-                </button>
-                {isPartyOpen && (
-                  <div style={{ marginTop: 12, display: 'grid', gap: 12 }}>
-                    {STATUS_ORDER.map((st) => {
-                      const list = byStatus[st] || []
-                      if (list.length === 0) return null
-                      const stOpen = !!(expandedByStatus[party.id]?.[st])
-                      return (
-                        <div key={st}>
-                          <button className="link" onClick={() => toggleStatus(party.id, st)} style={{ fontWeight: 500 }}>
-                            {stOpen ? '▼' : '►'} {st} ({list.length})
-                          </button>
-                          {stOpen && (
-                            <div style={{
-                              display: 'grid',
-                              gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-                              gap: 12,
-                              marginTop: 8,
-                            }}>
-                              {list.map((s) => (
-                                <Link to={`/voting-sessions/${s.id}`} key={s.id} style={{ textDecoration: 'none' }}>
-                                  <div className="card" style={{ padding: 12 }}>
-                                    <div style={{ fontWeight: 600 }}>{s.name}</div>
-                                  </div>
-                                </Link>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
+      </div>
+
+      {isLoading && (
+        <div className="party-section">
+          <div className="party-header">
+            <Skeleton style={{ height: 32, width: 200 }} />
+            <Skeleton style={{ height: 44, width: 120 }} />
+          </div>
+          <div className={`content-grid cols-${gridCols}`}>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="content-card">
+                <Skeleton style={{ height: 120 }} />
               </div>
-            )
-          })}
+            ))}
+          </div>
+        </div>
+      )}
+
+      {error && <p className="text-secondary">{String(error)}</p>}
+
+      {!isLoading && !error && Object.entries(groupedByParty).map(([partyId, { party, sessions }]) => (
+        <div key={partyId} className="party-section">
+          <div className="party-header">
+            <h2 className="party-title">{party.name}</h2>
+            <div className="party-controls">
+              <Link 
+                to={`/voting-sessions/new${party.id !== 'unknown' ? `?partyId=${party.id}` : ''}`} 
+                className="primary-button"
+              >
+                New session
+              </Link>
+            </div>
+          </div>
+          
+          {sessions.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-secondary">No voting sessions yet in this party.</p>
+            </div>
+          ) : (
+            <div className={`content-grid cols-${gridCols}`}>
+              {sessions.map((session) => (
+                <Link 
+                  key={session.id} 
+                  to={`/voting-sessions/${session.id}`} 
+                  className="content-card"
+                >
+                  <h3 className="content-card-title">{session.name}</h3>
+                  <div className="content-card-body">
+                    {formatTimeInfo(session) && (
+                      <div className="text-secondary mb-2">
+                        {formatTimeInfo(session)}
+                      </div>
+                    )}
+                    <div className="text-tertiary">
+                      Click to view details and manage this voting session
+                    </div>
+                  </div>
+                  <div className="content-card-footer">
+                    <span className="content-card-creator">{party.name}</span>
+                    <span className={`status-badge ${session.status.toLowerCase().replace('_', '-')}`}>
+                      {session.status.replace('_', ' ')}
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {!isLoading && !error && Object.keys(groupedByParty).length === 0 && (
+        <div className="text-center py-12">
+          <h3 className="text-secondary mb-4">No voting sessions yet</h3>
+          <Link to="/voting-sessions/new" className="primary-button">
+            Create your first session
+          </Link>
         </div>
       )}
     </div>

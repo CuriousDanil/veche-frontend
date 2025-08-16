@@ -82,22 +82,22 @@ export default function Register() {
 
   return (
     <div className="container container-narrow">
-      <div style={{ paddingTop: 48, paddingBottom: 24 }}>
-        <h2 style={{ fontSize: 32, margin: 0 }}>Create founder account</h2>
-        <p style={{ marginTop: 8, color: 'var(--text-secondary)' }}>Start your organization and invite your community.</p>
+      <div className="mt-8 mb-6 text-center">
+        <h2>Create founder account</h2>
+        <p className="text-secondary mt-2">Start your organization and invite your community.</p>
       </div>
       <form className="form card" onSubmit={submit}>
         <div className="field">
           <label htmlFor="email">Email</label>
           <input id="email" className="text-input" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-          <div style={{ color: emailHintColor, fontSize: 12 }}>
+          <div style={{ color: emailHintColor, fontSize: 'var(--text-xs)' }}>
             {emailValid ? 'Looks good.' : attempted ? 'Email is required.' : 'Enter your email.'}
           </div>
         </div>
         <div className="field">
           <label htmlFor="password">Password</label>
           <input id="password" className="text-input" type="password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-          <div style={{ display: 'grid', gap: 4, fontSize: 12, marginTop: 6 }}>
+          <div style={{ display: 'grid', gap: 'var(--space-xs)', fontSize: 'var(--text-xs)', marginTop: 'var(--space-sm)' }}>
             <div style={{ color: reqColor(len >= minLen) }}>
               At least {minLen} characters{len < minLen ? ` — ${remaining} more symbols` : ''}
             </div>
@@ -118,16 +118,16 @@ export default function Register() {
           <label htmlFor="partyName">Party name</label>
           <input id="partyName" className="text-input" type="text" required value={form.partyName} onChange={(e) => setForm({ ...form, partyName: e.target.value })} />
         </div>
-        <div style={{ marginTop: 8 }}>
+        <div className="mt-2">
           <button className="primary-button" type="submit" disabled={isSubmitting}>
             {isSubmitting ? 'Registering…' : 'Register'}
           </button>
         </div>
       </form>
       {status && (
-        <p style={{ marginTop: 16, color: 'var(--text-secondary)' }}>{status}</p>
+        <p className="mt-4 text-secondary">{status}</p>
       )}
-      <p style={{ marginTop: 16, color: 'var(--text-secondary)' }}>
+      <p className="mt-4 text-secondary text-center">
         Already have an account? <Link to="/login" className="link">Log in</Link>
       </p>
     </div>

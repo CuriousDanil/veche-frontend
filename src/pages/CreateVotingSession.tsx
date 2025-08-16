@@ -1,17 +1,19 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { apiFetch } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import useSWR from 'swr'
 import { swrJsonFetcher } from '../lib/swr'
 import { Skeleton, SkeletonText } from '../components/Skeleton'
+import DateTimePicker from '../components/DateTimePicker'
 
 type Party = { id: string; name: string }
 type Discussion = { id: string; subject: string; status: 'WAITING' | 'VOTING' | 'FINAL_VOTING' | 'RESOLVED' | 'ARCHIVED'; party: Party }
 
 export default function CreateVotingSession() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { user } = useAuth()
   const myPartyIds = user?.partyIds ?? []
 
@@ -26,12 +28,16 @@ export default function CreateVotingSession() {
 
   const { data: parties, isLoading: pLoad } = useSWR<Party[]>('/api/parties', swrJsonFetcher, { refreshInterval: 60000 })
   const { data: discussions, isLoading: dLoad } = useSWR<Discussion[]>('/api/discussions', swrJsonFetcher, { refreshInterval: 5000 })
-  useMemo(() => {
-    if (!partyId && parties && myPartyIds.length > 0) {
+  useEffect(() => {
+    // Set party from URL parameter first
+    const partyIdFromUrl = searchParams.get('partyId')
+    if (partyIdFromUrl && myPartyIds.includes(partyIdFromUrl)) {
+      setPartyId(partyIdFromUrl)
+    } else if (!partyId && parties && myPartyIds.length > 0) {
       const firstMyParty = parties.find((pp) => myPartyIds.includes(pp.id))
       if (firstMyParty) setPartyId(firstMyParty.id)
     }
-  }, [parties?.length, myPartyIds.join(',')])
+  }, [parties?.length, myPartyIds.join(','), searchParams, partyId])
 
   const myParties = useMemo(() => (parties || []).filter((p) => myPartyIds.includes(p.id)), [parties, myPartyIds.join(',')])
   const waitingDiscussions = useMemo(
@@ -83,8 +89,9 @@ export default function CreateVotingSession() {
 
   return (
     <div className="container container-narrow">
-      <div style={{ paddingTop: 32, paddingBottom: 16 }}>
-        <h2 style={{ margin: 0 }}>Create voting session</h2>
+      <div className="mt-8 mb-6 text-center">
+        <h2>Create voting session</h2>
+        <p className="text-secondary mt-2">Organize discussions into a structured voting session with time-based rounds.</p>
       </div>
       <form className="form card" onSubmit={submit}>
         <div className="field">
@@ -92,55 +99,102 @@ export default function CreateVotingSession() {
           <input id="name" className="text-input" type="text" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div className="field">
-          <label>Party</label>
+          <label>Select party</label>
           {(pLoad || dLoad) && <SkeletonText lines={2} />}
           {!pLoad && myParties.length === 0 && (
-            <p style={{ color: 'var(--text-secondary)' }}>No parties available.</p>
+            <p className="text-secondary">No parties available.</p>
           )}
-          {!pLoad && myParties.map((p) => (
-            <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <input type="radio" name="party" value={p.id} checked={partyId === p.id} onChange={() => setPartyId(p.id)} />
-              {p.name}
-            </label>
-          ))}
+          {!pLoad && myParties.length > 0 && (
+            <div className="radio-group">
+              {myParties.map((p) => (
+                <label key={p.id} className={`radio-option ${partyId === p.id ? 'selected' : ''}`}>
+                  <input 
+                    type="radio" 
+                    name="party" 
+                    value={p.id} 
+                    checked={partyId === p.id} 
+                    onChange={() => setPartyId(p.id)} 
+                  />
+                  <span className="font-medium">{p.name}</span>
+                </label>
+              ))}
+            </div>
+          )}
         </div>
         <div className="field">
-          <label>Discussions (WAITING)</label>
+          <label>Select discussions (WAITING status)</label>
           {!dLoad && waitingDiscussions.length === 0 && (
-            <p style={{ color: 'var(--text-secondary)' }}>No WAITING discussions in this party.</p>
+            <p className="text-secondary">No WAITING discussions available in this party.</p>
           )}
-          <div style={{ display: 'grid', gap: 6 }}>
-            {(dLoad ? Array.from({ length: 3 }, (_, i) => ({ id: `sk_${i}`, subject: '' })) : waitingDiscussions).map((d: any) => (
-              <label key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {!dLoad && <input
-                  type="checkbox"
-                  value={d.id}
-                  checked={discussionIds.includes(d.id)}
-                  onChange={() => toggleDiscussion(d.id)}
-                />}
-                {dLoad ? <Skeleton style={{ height: 12, width: 220 }} /> : d.subject}
-              </label>
-            ))}
+          {!dLoad && waitingDiscussions.length > 0 && (
+            <div className="checkbox-group">
+              {waitingDiscussions.map((d) => (
+                <label 
+                  key={d.id} 
+                  className={`checkbox-option ${discussionIds.includes(d.id) ? 'selected' : ''}`}
+                >
+                  <input
+                    type="checkbox"
+                    value={d.id}
+                    checked={discussionIds.includes(d.id)}
+                    onChange={() => toggleDiscussion(d.id)}
+                  />
+                  <span className="font-medium">{d.subject}</span>
+                </label>
+              ))}
+            </div>
+          )}
+          {dLoad && (
+            <div className="checkbox-group">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="checkbox-option">
+                  <Skeleton style={{ height: 12, width: 220 }} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="field">
+          <DateTimePicker
+            label="First round starts at"
+            value={firstRoundStartsAt}
+            onChange={setFirstRoundStartsAt}
+          />
+          <div className="text-tertiary mt-2" style={{ fontSize: 'var(--text-xs)' }}>
+            All times are in UTC. Participants will see times in their local timezone.
           </div>
         </div>
         <div className="field">
-          <label>First round starts at (UTC)</label>
-          <input type="datetime-local" className="text-input" value={firstRoundStartsAt} onChange={(e) => setFirstRoundStartsAt(e.target.value)} />
+          <DateTimePicker
+            label="Second round starts at"
+            value={secondRoundStartsAt}
+            onChange={setSecondRoundStartsAt}
+          />
         </div>
         <div className="field">
-          <label>Second round starts at (UTC)</label>
-          <input type="datetime-local" className="text-input" value={secondRoundStartsAt} onChange={(e) => setSecondRoundStartsAt(e.target.value)} />
+          <DateTimePicker
+            label="Session ends at"
+            value={endsAt}
+            onChange={setEndsAt}
+          />
         </div>
-        <div className="field">
-          <label>Ends at (UTC)</label>
-          <input type="datetime-local" className="text-input" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
-        </div>
-        <div style={{ marginTop: 8 }}>
-          <button className="primary-button" type="submit" disabled={isSubmitting}>
+        <div className="button-group mt-6">
+          <button 
+            className="primary-button" 
+            type="submit" 
+            disabled={isSubmitting || !name.trim() || !partyId || discussionIds.length === 0}
+          >
             {isSubmitting ? 'Creating…' : 'Create session'}
           </button>
+          <button 
+            type="button" 
+            className="secondary-button" 
+            onClick={() => navigate('/voting-sessions')}
+          >
+            Cancel
+          </button>
         </div>
-        {status && <p style={{ marginTop: 12, color: 'var(--text-secondary)' }}>{status}</p>}
+        {status && <p className="mt-4 text-secondary">{status}</p>}
       </form>
     </div>
   )

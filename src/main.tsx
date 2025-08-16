@@ -15,6 +15,7 @@ import VotingSessions from './pages/VotingSessions.tsx'
 import CreateVotingSession from './pages/CreateVotingSession.tsx'
 import VotingSessionDetail from './pages/VotingSessionDetail.tsx'
 import CompanyPage from './pages/Company.tsx'
+import CreateParty from './pages/CreateParty.tsx'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import TopLoader from './components/TopLoader.tsx'
 
@@ -38,6 +39,7 @@ const router = createBrowserRouter([
   { path: '/voting-sessions/new', element: withLayout(<CreateVotingSession />) },
   { path: '/voting-sessions/:id', element: withLayout(<VotingSessionDetail />) },
   { path: '/company', element: withLayout(<CompanyPage />) },
+  { path: '/company/parties/new', element: withLayout(<CreateParty />) },
 ])
 
 createRoot(document.getElementById('root')!).render(

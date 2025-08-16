@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import useSWR from 'swr'
 import { swrJsonFetcher } from '../lib/swr'
@@ -17,119 +17,111 @@ type Discussion = {
   status: 'WAITING' | 'VOTING' | 'FINAL_VOTING' | 'RESOLVED' | 'ARCHIVED'
 }
 
-const STATUS_ORDER: Discussion['status'][] = ['WAITING', 'VOTING', 'FINAL_VOTING', 'RESOLVED', 'ARCHIVED']
-const DEFAULT_EXPANDED_STATUSES = new Set(['WAITING', 'VOTING', 'FINAL_VOTING'])
-
 export default function Discussions() {
   const { user } = useAuth()
   const myPartyIds = user?.partyIds ?? []
-  const [items, setItems] = useState<Discussion[]>([])
+  const [gridCols, setGridCols] = useState(3)
   const { data, error, isLoading } = useSWR<Discussion[]>('/api/discussions', swrJsonFetcher, { refreshInterval: 5000 })
 
-  const [expandedParties, setExpandedParties] = useState<Record<string, boolean>>({})
-  const [expandedByStatus, setExpandedByStatus] = useState<Record<string, Record<string, boolean>>>({})
-
-  useEffect(() => {
-    if (!data) return
-    setItems(data)
-    const partyDefaults: Record<string, boolean> = {}
-    const statusDefaults: Record<string, Record<string, boolean>> = {}
-    for (const d of data) {
-      const pid = d.party?.id || d.partyId || 'unknown'
-      if (myPartyIds.includes(pid)) partyDefaults[pid] = true
-      if (!statusDefaults[pid]) statusDefaults[pid] = {}
-      if (DEFAULT_EXPANDED_STATUSES.has(d.status)) statusDefaults[pid][d.status] = true
+  const groupedByParty = useMemo(() => {
+    if (!data) return {}
+    const byParty: Record<string, { party: Party; discussions: Discussion[] }> = {}
+    
+    for (const discussion of data) {
+      const partyId = discussion.party?.id || discussion.partyId || 'unknown'
+      const party = discussion.party || { id: partyId, name: partyId }
+      
+      if (!byParty[partyId]) {
+        byParty[partyId] = { party, discussions: [] }
+      }
+      byParty[partyId].discussions.push(discussion)
     }
-    setExpandedParties((prev) => ({ ...partyDefaults, ...prev }))
-    setExpandedByStatus((prev) => ({ ...statusDefaults, ...prev }))
-  }, [data, myPartyIds.join(',')])
-
-  const grouped = useMemo(() => {
-    const byParty: Record<string, { partyName: string; byStatus: Record<string, Discussion[]> }> = {}
-    for (const d of items) {
-      const pid = d.party?.id || d.partyId || 'unknown'
-      const pname = d.party?.name || pid
-      if (!byParty[pid]) byParty[pid] = { partyName: pname, byStatus: {} }
-      if (!byParty[pid].byStatus[d.status]) byParty[pid].byStatus[d.status] = []
-      byParty[pid].byStatus[d.status].push(d)
-    }
+    
     return byParty
-  }, [items])
-
-  function toggleParty(partyId: string) {
-    setExpandedParties((m) => ({ ...m, [partyId]: !m[partyId] }))
-  }
-  function toggleStatus(partyId: string, status: string) {
-    setExpandedByStatus((m) => ({ ...m, [partyId]: { ...(m[partyId] || {}), [status]: !(m[partyId]?.[status]) } }))
-  }
+  }, [data])
 
   return (
     <div className="container">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 32, paddingBottom: 16 }}>
-        <h2 style={{ margin: 0 }}>Discussions</h2>
-        <Link to="/discussions/new" className="primary-button">New discussion</Link>
-      </div>
-      {isLoading && (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-          gap: 16,
-          paddingTop: 8,
-        }}>
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="card" style={{ padding: 12 }}>
-              <Skeleton style={{ height: 96, borderRadius: 8 }} />
-            </div>
+      <div className="mt-8 mb-6" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h2>Discussions</h2>
+        <div className="grid-controls">
+          {[1, 2, 3, 4].map(cols => (
+            <button
+              key={cols}
+              className={`grid-control-button ${gridCols === cols ? 'active' : ''}`}
+              onClick={() => setGridCols(cols)}
+            >
+              {cols}
+            </button>
           ))}
         </div>
-      )}
-      {error && <p style={{ color: 'var(--text-secondary)' }}>{String(error)}</p>}
-      {!isLoading && !error && (
-        <div style={{ display: 'grid', gap: 16 }}>
-          {Object.entries(grouped).map(([pid, { partyName, byStatus }]) => {
-            const total = Object.values(byStatus).reduce((acc, arr) => acc + arr.length, 0)
-            const open = !!expandedParties[pid]
-            return (
-              <div key={pid} className="card" style={{ padding: 16 }}>
-                <button className="link" onClick={() => toggleParty(pid)} style={{ fontWeight: 600 }}>
-                  {open ? '▼' : '►'} {partyName} ({total})
-                </button>
-                {open && (
-                  <div style={{ marginTop: 12, display: 'grid', gap: 12 }}>
-                    {STATUS_ORDER.map((st) => {
-                      const list = byStatus[st] || []
-                      if (list.length === 0) return null
-                      const stOpen = !!(expandedByStatus[pid]?.[st])
-                      return (
-                        <div key={st}>
-                          <button className="link" onClick={() => toggleStatus(pid, st)} style={{ fontWeight: 500 }}>
-                            {stOpen ? '▼' : '►'} {st} ({list.length})
-                          </button>
-                          {stOpen && (
-                            <div style={{
-                              display: 'grid',
-                              gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-                              gap: 12,
-                              marginTop: 8,
-                            }}>
-                              {list.map((d) => (
-                                <Link to={`/discussions/${d.id}`} key={d.id} style={{ textDecoration: 'none' }}>
-                                  <div className="card" style={{ padding: 12 }}>
-                                    <div style={{ fontWeight: 600, marginBottom: 8 }}>{d.subject}</div>
-                                    <div style={{ color: 'var(--text-secondary)', fontSize: 14 }}>By {d.creatorName}</div>
-                                  </div>
-                                </Link>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
+      </div>
+
+      {isLoading && (
+        <div className="party-section">
+          <div className="party-header">
+            <Skeleton style={{ height: 32, width: 200 }} />
+            <Skeleton style={{ height: 44, width: 120 }} />
+          </div>
+          <div className={`content-grid cols-${gridCols}`}>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="content-card">
+                <Skeleton style={{ height: 120 }} />
               </div>
-            )
-          })}
+            ))}
+          </div>
+        </div>
+      )}
+
+      {error && <p className="text-secondary">{String(error)}</p>}
+
+      {!isLoading && !error && Object.entries(groupedByParty).map(([partyId, { party, discussions }]) => (
+        <div key={partyId} className="party-section">
+          <div className="party-header">
+            <h2 className="party-title">{party.name}</h2>
+            <div className="party-controls">
+              <Link 
+                to={`/discussions/new${party.id !== 'unknown' ? `?partyId=${party.id}` : ''}`} 
+                className="primary-button"
+              >
+                New discussion
+              </Link>
+            </div>
+          </div>
+          
+          {discussions.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-secondary">No discussions yet in this party.</p>
+            </div>
+          ) : (
+            <div className={`content-grid cols-${gridCols}`}>
+              {discussions.map((discussion) => (
+                <Link 
+                  key={discussion.id} 
+                  to={`/discussions/${discussion.id}`} 
+                  className="content-card"
+                >
+                  <h3 className="content-card-title">{discussion.subject}</h3>
+                  <p className="content-card-body">{discussion.content}</p>
+                  <div className="content-card-footer">
+                    <span className="content-card-creator">By {discussion.creatorName}</span>
+                    <span className={`status-badge ${discussion.status.toLowerCase().replace('_', '-')}`}>
+                      {discussion.status.replace('_', ' ')}
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {!isLoading && !error && Object.keys(groupedByParty).length === 0 && (
+        <div className="text-center py-12">
+          <h3 className="text-secondary mb-4">No discussions yet</h3>
+          <Link to="/discussions/new" className="primary-button">
+            Create your first discussion
+          </Link>
         </div>
       )}
     </div>
