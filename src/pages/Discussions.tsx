@@ -26,27 +26,54 @@ type Discussion = {
 export default function Discussions() {
   const { t } = useTranslation(['discussions', 'common'])
   const { translateError } = useApiError()
-  const { user } = useAuth()
-  const myPartyIds = user?.partyIds ?? []
   const [gridCols, setGridCols] = useState(3)
-  const { data, error, isLoading, mutate } = useSWR<Discussion[]>('/api/discussions', swrJsonFetcher, { refreshInterval: 5000 })
+  const { data: discussions, error: discussionsError, isLoading: discussionsLoading, mutate: mutateDiscussions } = useSWR<Discussion[]>('/api/discussions', swrJsonFetcher, { refreshInterval: 5000 })
+  const { data: parties, error: partiesError, isLoading: partiesLoading } = useSWR<Party[]>('/api/parties', swrJsonFetcher, { refreshInterval: 60000 })
 
   const groupedByParty = useMemo(() => {
-    if (!data) return {}
+    if (!parties) return {}
     const byParty: Record<string, { party: Party; discussions: Discussion[] }> = {}
     
-    for (const discussion of data) {
-      const partyId = discussion.party?.id || discussion.partyId || 'unknown'
-      const party = discussion.party || { id: partyId, name: partyId }
-      
-      if (!byParty[partyId]) {
-        byParty[partyId] = { party, discussions: [] }
-      }
-      byParty[partyId].discussions.push(discussion)
+    // Status priority mapping for sorting
+    const statusOrder = {
+      'WAITING': 1,
+      'VOTING': 2,
+      'FINAL_VOTING': 3,
+      'RESOLVED': 4,
+      'ARCHIVED': 5
     }
     
+    // First, create entries for ALL parties
+    for (const party of parties) {
+      byParty[party.id] = { party, discussions: [] }
+    }
+    
+    // Then, add discussions to their respective parties
+    if (discussions) {
+      for (const discussion of discussions) {
+        const partyId = discussion.party?.id || discussion.partyId || 'unknown'
+        
+        if (byParty[partyId]) {
+          byParty[partyId].discussions.push(discussion)
+        } else {
+          // Handle discussions with unknown/missing parties
+          const party = discussion.party || { id: partyId, name: partyId }
+          byParty[partyId] = { party, discussions: [discussion] }
+        }
+      }
+    }
+    
+    // Sort discussions within each party by status
+    Object.values(byParty).forEach(({ discussions }) => {
+      discussions.sort((a, b) => {
+        const aOrder = statusOrder[a.status as keyof typeof statusOrder] || 999
+        const bOrder = statusOrder[b.status as keyof typeof statusOrder] || 999
+        return aOrder - bOrder
+      })
+    })
+    
     return byParty
-  }, [data])
+  }, [parties, discussions])
 
   return (
     <div className="container">
@@ -66,7 +93,7 @@ export default function Discussions() {
         </div>
       </div>
 
-      {isLoading && (
+      {(discussionsLoading || partiesLoading) && (
         <div className="party-section">
           <div className="party-header">
             <Skeleton style={{ height: 32, width: 200 }} />
@@ -82,15 +109,22 @@ export default function Discussions() {
         </div>
       )}
 
-      {error && (
+      {(discussionsError || partiesError) && (
         <NetworkError 
-          message={translateError(error)}
-          onRetry={() => mutate()}
+          message={translateError(discussionsError || partiesError)}
+          onRetry={() => {
+            mutateDiscussions()
+            // Also retry parties if there's an error
+            if (partiesError) {
+              // Trigger parties refetch
+              window.location.reload()
+            }
+          }}
           inline
         />
       )}
 
-      {!isLoading && !error && Object.entries(groupedByParty).map(([partyId, { party, discussions }]) => (
+      {!discussionsLoading && !partiesLoading && !discussionsError && !partiesError && Object.entries(groupedByParty).map(([partyId, { party, discussions }]) => (
         <div key={partyId} className="party-section">
           <div className="party-header">
             <h2 className="party-title">{party.name}</h2>
@@ -133,7 +167,7 @@ export default function Discussions() {
         </div>
       ))}
 
-      {!isLoading && !error && Object.keys(groupedByParty).length === 0 && (
+      {!discussionsLoading && !partiesLoading && !discussionsError && !partiesError && Object.keys(groupedByParty).length === 0 && (
         <EmptyState
           icon="💬"
           title={t('empty.title', 'No discussions yet')}

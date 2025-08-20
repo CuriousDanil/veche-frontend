@@ -40,6 +40,18 @@
       "register": "Create Account"
     }
   },
+  "page403": {
+    "title": "Access Forbidden",
+    "subtitle": "You don't have permission to access this resource.",
+    "description": "You will be redirected to the welcome page in a few seconds.",
+    "descriptionWithCountdown": "You will be redirected to the welcome page in {{count}} seconds.",
+    "redirecting": "Redirecting to welcome page...",
+    "actions": {
+      "home": "Go to Home",
+      "login": "Log In",
+      "back": "Go Back"
+    }
+  },
   "loading": {
     "default": "Loading...",
     "company": "Loading company information...",

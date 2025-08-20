@@ -49,7 +49,7 @@ export default function DiscussionDetail() {
   const [editError, setEditError] = useState<string | null>(null)
   const [isCastingVote, setIsCastingVote] = useState(false)
   // Actions (rename party/company)
-  const [actionType, setActionType] = useState<'NONE' | 'RENAME_PARTY' | 'RENAME_COMPANY'>('NONE')
+  const [actionType, setActionType] = useState<'NONE' | 'RENAME_PARTY' | 'RENAME_COMPANY' | 'EVICT_USER_FROM_PARTY' | 'DELETE_PARTY'>('NONE')
   const [actionName, setActionName] = useState('')
 
   const isAuthor = useMemo(() => {
@@ -222,6 +222,8 @@ export default function DiscussionDetail() {
                   <option value="NONE">{t('create.actions.select', 'Select an action…')}</option>
                   <option value="RENAME_PARTY">{t('create.actions.renameParty', 'Rename party')}</option>
                   <option value="RENAME_COMPANY">{t('create.actions.renameCompany', 'Rename company')}</option>
+                  <option value="EVICT_USER_FROM_PARTY">{t('create.actions.evictUser', 'Evict user from party')}</option>
+                  <option value="DELETE_PARTY">{t('create.actions.deleteParty', 'Delete party')}</option>
                 </select>
                 {(actionType === 'RENAME_PARTY' || actionType === 'RENAME_COMPANY') && (
                   <div className="mt-3">
@@ -231,34 +233,51 @@ export default function DiscussionDetail() {
                       value={actionName} 
                       onChange={(e) => setActionName(e.target.value)} 
                     />
-                    <button
-                      className="primary-button mt-3"
-                      onClick={async () => {
-                        if (!id) return
-                        if (!actionName.trim()) { setStatusMsg('Enter new name'); return }
-                        try {
-                          setStatusMsg(null)
-                          const companyId = getAccessPayload()?.companyId
-                          const payload = actionType === 'RENAME_PARTY'
-                            ? { type: 'RENAME_PARTY', partyId: item.party.id, newName: actionName }
-                            : { type: 'RENAME_COMPANY', companyId, newName: actionName }
-                          const res = await apiFetch(`/api/discussions/${id}/action`, {
-                            method: 'POST',
-                            body: JSON.stringify(payload),
-                          })
-                          if (!res.ok) {
-                            setStatusMsg(await parseApiErrorResponse(res))
-                            return
-                          }
-                          setStatusMsg('Action added')
-                          setActionType('NONE')
-                          setActionName('')
-                        } catch (e) {
-                          setStatusMsg(parseUnknownError(e))
-                        }
-                      }}
-                    >Add action</button>
                   </div>
+                )}
+                {actionType !== 'NONE' && (
+                  <button
+                    className="primary-button mt-3"
+                    onClick={async () => {
+                      if (!id) return
+                      if ((actionType === 'RENAME_PARTY' || actionType === 'RENAME_COMPANY') && !actionName.trim()) { 
+                        setStatusMsg('Enter new name'); 
+                        return 
+                      }
+                      try {
+                        setStatusMsg(null)
+                        const companyId = getAccessPayload()?.companyId
+                        let payload: any
+                        switch (actionType) {
+                          case 'RENAME_PARTY':
+                            payload = { type: 'RENAME_PARTY', partyId: item.party.id, newName: actionName }
+                            break
+                          case 'RENAME_COMPANY':
+                            payload = { type: 'RENAME_COMPANY', companyId, newName: actionName }
+                            break
+                          case 'DELETE_PARTY':
+                            payload = { type: 'DELETE_PARTY', partyId: item.party.id }
+                            break
+                          default:
+                            setStatusMsg('Unknown action type')
+                            return
+                        }
+                        const res = await apiFetch(`/api/discussions/${id}/action`, {
+                          method: 'POST',
+                          body: JSON.stringify(payload),
+                        })
+                        if (!res.ok) {
+                          setStatusMsg(await parseApiErrorResponse(res))
+                          return
+                        }
+                        setStatusMsg('Action added')
+                        setActionType('NONE')
+                        setActionName('')
+                      } catch (e) {
+                        setStatusMsg(parseUnknownError(e))
+                      }
+                    }}
+                  >Add action</button>
                 )}
               </div>
             </div>

@@ -4,7 +4,7 @@ import { useLanguageNavigate } from '../hooks/useLanguage'
 import SEOHead from './SEOHead'
 
 type ErrorPageProps = {
-  type: '404' | '500' | 'network' | 'unauthorized'
+  type: '404' | '403' | '500' | 'network' | 'unauthorized'
   title?: string
   subtitle?: string
   description?: string
@@ -33,6 +33,7 @@ export default function ErrorPage({
   const getErrorIcon = (type: string) => {
     switch (type) {
       case '404': return '🔍'
+      case '403': return '🚫'
       case '500': return '⚠️'
       case 'network': return '🌐'
       case 'unauthorized': return '🔒'
@@ -88,6 +89,20 @@ export default function ErrorPage({
             </button>
             <button className="secondary-button" onClick={handleGoHome}>
               {t('common:buttons.cancel', 'Cancel')}
+            </button>
+          </div>
+        )
+      case '403':
+        return (
+          <div className="button-group">
+            <button className="primary-button" onClick={handleGoHome}>
+              {t('page403.actions.home', 'Go to Home')}
+            </button>
+            <Link to="/login" className="secondary-button">
+              {t('page403.actions.login', 'Log In')}
+            </Link>
+            <button className="secondary-button" onClick={handleGoBack}>
+              {t('page403.actions.back', 'Go Back')}
             </button>
           </div>
         )

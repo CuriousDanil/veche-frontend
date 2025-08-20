@@ -6,14 +6,27 @@
     "members_plural": "{{count}} members",
     "addUser": "Add user",
     "editParty": "Edit party",
+    "evictUser": "Evict from party",
     "featureComingSoon": "Feature coming soon"
   },
+  "userModal": {
+    "title": "User Information",
+    "name": "Name: {{name}}",
+    "email": "Email: {{email}}",
+    "bio": "Bio: {{bio}}",
+    "noBio": "No bio provided",
+    "evictButton": "Evict from party",
+    "confirmEvict": "Are you sure you want to evict this user?",
+    "close": "Close"
+  },
   "editParty": {
-    "modalTitle": "Rename Party",
+    "modalTitle": "Manage Party",
     "newNameLabel": "New party name",
     "newNamePlaceholder": "Enter new party name",
     "currentName": "Current name: {{name}}",
-    "createDiscussion": "Create Discussion",
+    "renameButton": "Rename Party",
+    "deleteButton": "Delete Party",
+    "confirmDelete": "Are you sure you want to delete this party? This action cannot be undone.",
     "cancel": "Cancel"
   },
   "loading": {

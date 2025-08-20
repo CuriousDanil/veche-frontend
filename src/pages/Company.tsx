@@ -18,15 +18,24 @@ export default function CompanyPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingParty, setEditingParty] = useState<{ id: string; name: string } | null>(null)
   const [newPartyName, setNewPartyName] = useState('')
+  
+  // User modal state
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<{ id: string; name: string; email: string; bio: string; partyId: string } | null>(null)
 
   const usersByParty = useMemo(() => {
-    const map: Record<string, { name: string; users: string[] }> = {}
+    const map: Record<string, { name: string; users: Array<{ id: string; name: string; email: string; bio: string }> }> = {}
     if (!company) return map
     for (const p of company.parties) map[p.id] = { name: p.name, users: [] }
     for (const u of company.users) {
       for (const p of u.parties) {
         if (!map[p.id]) map[p.id] = { name: p.name, users: [] }
-        map[p.id].users.push(`${u.name} (${u.email})`)
+        map[p.id].users.push({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          bio: u.bio
+        })
       }
     }
     return map
@@ -44,7 +53,7 @@ export default function CompanyPage() {
     setNewPartyName('')
   }
 
-  const handleConfirmEdit = () => {
+  const handleRenameParty = () => {
     if (!editingParty || !newPartyName.trim()) return
     
     // Navigate to CreateDiscussion with pre-filled action
@@ -55,6 +64,45 @@ export default function CompanyPage() {
       subject: `Rename party to "${newPartyName.trim()}"`
     })
     languageNavigate(`/discussions/new?${params.toString()}`)
+  }
+
+  const handleDeleteParty = () => {
+    if (!editingParty) return
+    
+    const confirmMessage = t('editParty.confirmDelete', 'Are you sure you want to delete this party? This action cannot be undone.')
+    if (window.confirm(confirmMessage)) {
+      // Navigate to CreateDiscussion with delete party action
+      const params = new URLSearchParams({
+        partyId: editingParty.id,
+        actionType: 'DELETE_PARTY',
+        subject: `Delete party "${editingParty.name}"`
+      })
+      languageNavigate(`/discussions/new?${params.toString()}`)
+    }
+  }
+
+  const handleUserClick = (user: { id: string; name: string; email: string; bio: string }, partyId: string) => {
+    setSelectedUser({ ...user, partyId })
+    setIsUserModalOpen(true)
+  }
+
+  const handleCloseUserModal = () => {
+    setIsUserModalOpen(false)
+    setSelectedUser(null)
+  }
+
+  const handleEvictUser = () => {
+    if (!selectedUser) return
+    
+    // Navigate to CreateDiscussion with evict user action
+    const params = new URLSearchParams({
+      partyId: selectedUser.partyId,
+      actionType: 'EVICT_USER_FROM_PARTY',
+      userId: selectedUser.id,
+      subject: `Evict ${selectedUser.name} from party`
+    })
+    languageNavigate(`/discussions/new?${params.toString()}`)
+    setIsUserModalOpen(false)
   }
 
   return (
@@ -73,17 +121,14 @@ export default function CompanyPage() {
             <LanguageLink to="/company/parties/new" className="primary-button">{t('createParty')}</LanguageLink>
           </div>
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            display: 'flex',
+            flexDirection: 'column',
             gap: 'var(--space-lg)',
             marginTop: 'var(--space-lg)',
-            gridAutoFlow: 'dense',
           }}>
             {Object.entries(usersByParty).map(([pid, group]) => {
-              const size = group.users.length
-              const spanCols = size > 8 ? 2 : 1
               return (
-                <div key={pid} className="card" style={{ gridColumn: `span ${spanCols}` }}>
+                <div key={pid} className="card">
                   <div className="field">
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-md)' }}>
                       <h3 className="font-semibold">{group.name}</h3>
@@ -102,15 +147,32 @@ export default function CompanyPage() {
                       {formatMemberCount(group.users.length)}
                     </div>
                     <div style={{ display: 'grid', gap: 'var(--space-xs)', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-                      {group.users.map((u, idx) => (
-                        <div key={idx} className="text-secondary" style={{ 
-                          padding: 'var(--space-xs) var(--space-sm)',
-                          background: 'var(--border-light)',
-                          borderRadius: 'var(--radius)',
-                          fontSize: 'var(--text-sm)'
-                        }}>
-                          {u}
-                        </div>
+                      {group.users.map((u) => (
+                        <button 
+                          key={u.id} 
+                          className="text-secondary" 
+                          onClick={() => handleUserClick(u, pid)}
+                          style={{ 
+                            padding: 'var(--space-xs) var(--space-sm)',
+                            background: 'var(--border-light)',
+                            borderRadius: 'var(--radius)',
+                            fontSize: 'var(--text-sm)',
+                            border: 'none',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'var(--accent-blue)'
+                            e.currentTarget.style.color = 'white'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'var(--border-light)'
+                            e.currentTarget.style.color = 'var(--text-secondary)'
+                          }}
+                        >
+                          {u.name} ({u.email})
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -147,19 +209,77 @@ export default function CompanyPage() {
           <div className="button-group mt-4">
             <button 
               className="primary-button" 
-              onClick={handleConfirmEdit}
+              onClick={handleRenameParty}
               disabled={!newPartyName.trim() || newPartyName.trim() === editingParty?.name}
             >
-              {t('editParty.createDiscussion')}
+              {t('editParty.renameButton', 'Rename Party')}
+            </button>
+            <button 
+              className="secondary-button" 
+              onClick={handleDeleteParty}
+              style={{ 
+                background: 'var(--red)', 
+                color: 'white',
+                borderColor: 'var(--red)'
+              }}
+            >
+              {t('editParty.deleteButton', 'Delete Party')}
             </button>
             <button 
               className="secondary-button" 
               onClick={handleCloseModal}
             >
-              {t('editParty.cancel')}
+              {t('editParty.cancel', 'Cancel')}
             </button>
           </div>
         </div>
+      </Modal>
+      
+      {/* User Information Modal */}
+      <Modal 
+        isOpen={isUserModalOpen} 
+        onClose={handleCloseUserModal} 
+        title={t('userModal.title', 'User Information')}
+      >
+        {selectedUser && (
+          <div className="form">
+            <div className="field">
+              <div className="text-primary mb-3" style={{ fontSize: 'var(--text-lg)', fontWeight: 600 }}>
+                {selectedUser.name}
+              </div>
+              <div className="mb-2">
+                <strong>{t('userModal.email', 'Email: {{email}}', { email: selectedUser.email })}</strong>
+              </div>
+              <div className="mb-4">
+                <div className="text-secondary" style={{ fontSize: 'var(--text-sm)' }}>
+                  {selectedUser.bio ? 
+                    t('userModal.bio', 'Bio: {{bio}}', { bio: selectedUser.bio }) : 
+                    t('userModal.noBio', 'No bio provided')
+                  }
+                </div>
+              </div>
+            </div>
+            <div className="button-group mt-4">
+              <button 
+                className="primary-button" 
+                onClick={handleEvictUser}
+                style={{ 
+                  background: 'var(--red)', 
+                  color: 'white',
+                  borderColor: 'var(--red)'
+                }}
+              >
+                {t('userModal.evictButton', 'Evict from party')}
+              </button>
+              <button 
+                className="secondary-button" 
+                onClick={handleCloseUserModal}
+              >
+                {t('userModal.close', 'Close')}
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   )

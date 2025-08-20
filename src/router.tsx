@@ -18,6 +18,7 @@ import CompanyPage from './pages/Company'
 import CreateParty from './pages/CreateParty'
 import NotFound from './pages/NotFound'
 import ServerError from './pages/ServerError'
+import Forbidden from './pages/Forbidden'
 
 function withLayout(children: ReactNode) {
   return (
@@ -60,6 +61,7 @@ export const router = createBrowserRouter([
   { path: '/company/parties/new', element: withLayout(<CreateParty />) },
   
   // Error pages
+  { path: '/403', element: withLayout(<Forbidden />) },
   { path: '/500', element: withLayout(<ServerError />) },
   { path: '*', element: withLayout(<NotFound />) },
   
@@ -81,6 +83,7 @@ export const router = createBrowserRouter([
       { path: 'company/parties/new', element: withLayout(<CreateParty />) },
       
       // Error pages
+      { path: '403', element: withLayout(<Forbidden />) },
       { path: '500', element: withLayout(<ServerError />) },
       { path: '*', element: withLayout(<NotFound />) }
     ]

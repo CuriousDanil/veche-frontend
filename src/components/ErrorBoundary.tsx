@@ -29,6 +29,9 @@ export class ErrorBoundary extends Component<Props, State> {
       
       const isAuthError = this.state.error?.message?.includes('401') || 
                          this.state.error?.message?.includes('Unauthorized')
+      
+      const isForbiddenError = this.state.error?.message?.includes('403') || 
+                              this.state.error?.message?.includes('Forbidden')
 
       if (isNetworkError) {
         return (
@@ -38,6 +41,10 @@ export class ErrorBoundary extends Component<Props, State> {
             onRetry={() => window.location.reload()}
           />
         )
+      }
+
+      if (isForbiddenError) {
+        return <ErrorPage type="403" />
       }
 
       if (isAuthError) {

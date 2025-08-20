@@ -73,6 +73,13 @@ export async function apiFetch(input: RequestInfo | URL, init: ApiRequestInit = 
     }
   }
 
+  if (response.status === 403 && !skipAuth) {
+    // Forbidden - redirect to 403 page after a short delay
+    setTimeout(() => {
+      window.location.href = '/403'
+    }, 100)
+  }
+
   return response
 }
 

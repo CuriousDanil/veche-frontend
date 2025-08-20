@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import type { FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -38,12 +38,22 @@ export default function CreateDiscussion() {
   })
   const [status, setStatus] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [actionType, setActionType] = useState<'NONE' | 'RENAME_PARTY' | 'RENAME_COMPANY'>('NONE')
+  const [actionType, setActionType] = useState<'NONE' | 'RENAME_PARTY' | 'RENAME_COMPANY' | 'EVICT_USER_FROM_PARTY' | 'DELETE_PARTY'>('NONE')
   const [actionName, setActionName] = useState('')
+  const [selectedUserId, setSelectedUserId] = useState('')
   const { data: parties, error: partiesError, isLoading: loadingParties } = useSWR<Party[]>('/api/parties', swrJsonFetcher, { refreshInterval: 60000 })
+  const { data: company } = useSWR<any>('/api/company/my-company', swrJsonFetcher, { refreshInterval: 60000 })
 
   const myPartyIds = user?.partyIds ?? []
   const myParties = (parties || []).filter((p) => myPartyIds.includes(p.id))
+  
+  // Get users for selected party (for evict action)
+  const selectedPartyUsers = useMemo(() => {
+    if (!company || !form.partyId) return []
+    return company.users.filter((u: any) => 
+      u.parties.some((p: any) => p.id === form.partyId)
+    )
+  }, [company, form.partyId])
 
   useEffect(() => {
     // Set party from URL parameter first
@@ -55,14 +65,18 @@ export default function CreateDiscussion() {
     }
     
     // Set action from URL parameters
-    const actionTypeFromUrl = searchParams.get('actionType') as 'NONE' | 'RENAME_PARTY' | 'RENAME_COMPANY' | null
+    const actionTypeFromUrl = searchParams.get('actionType') as 'NONE' | 'RENAME_PARTY' | 'RENAME_COMPANY' | 'EVICT_USER_FROM_PARTY' | 'DELETE_PARTY' | null
     const actionNameFromUrl = searchParams.get('actionName')
+    const userIdFromUrl = searchParams.get('userId')
     const subjectFromUrl = searchParams.get('subject')
     
-    if (actionTypeFromUrl && ['RENAME_PARTY', 'RENAME_COMPANY'].includes(actionTypeFromUrl)) {
+    if (actionTypeFromUrl && ['RENAME_PARTY', 'RENAME_COMPANY', 'EVICT_USER_FROM_PARTY', 'DELETE_PARTY'].includes(actionTypeFromUrl)) {
       setActionType(actionTypeFromUrl)
       if (actionNameFromUrl) {
         setActionName(actionNameFromUrl)
+      }
+      if (userIdFromUrl) {
+        setSelectedUserId(userIdFromUrl)
       }
     }
     
@@ -95,9 +109,23 @@ export default function CreateDiscussion() {
       // If user chose an action and we have an id, post the action
       if (actionType !== 'NONE' && createdId) {
         const companyId = getAccessPayload()?.companyId
-        const payload = actionType === 'RENAME_PARTY'
-          ? { type: 'RENAME_PARTY', partyId: form.partyId, newName: actionName }
-          : { type: 'RENAME_COMPANY', companyId, newName: actionName }
+        let payload: any
+        
+        switch (actionType) {
+          case 'RENAME_PARTY':
+            payload = { type: 'RENAME_PARTY', partyId: form.partyId, newName: actionName }
+            break
+          case 'RENAME_COMPANY':
+            payload = { type: 'RENAME_COMPANY', companyId, newName: actionName }
+            break
+          case 'EVICT_USER_FROM_PARTY':
+            payload = { type: 'EVICT_USER_FROM_PARTY', partyId: form.partyId, userId: selectedUserId }
+            break
+          case 'DELETE_PARTY':
+            payload = { type: 'DELETE_PARTY', partyId: form.partyId }
+            break
+        }
+        
         const aRes = await apiFetch(`/api/discussions/${createdId}/action`, {
           method: 'POST',
           body: JSON.stringify(payload),
@@ -181,6 +209,8 @@ export default function CreateDiscussion() {
             <option value="NONE">{t('create.actions.select', 'Select an action…')}</option>
             <option value="RENAME_PARTY">{t('create.actions.renameParty', 'Rename party')}</option>
             <option value="RENAME_COMPANY">{t('create.actions.renameCompany', 'Rename company')}</option>
+            <option value="EVICT_USER_FROM_PARTY">{t('create.actions.evictUser', 'Evict user from party')}</option>
+            <option value="DELETE_PARTY">{t('create.actions.deleteParty', 'Delete party')}</option>
           </select>
           {(actionType === 'RENAME_PARTY' || actionType === 'RENAME_COMPANY') && (
             <div className="mt-3">
@@ -192,9 +222,53 @@ export default function CreateDiscussion() {
               />
             </div>
           )}
+          {actionType === 'EVICT_USER_FROM_PARTY' && (
+            <div className="mt-3">
+              <label>{t('create.actions.selectUser', 'Select user to evict')}</label>
+              {!form.partyId && (
+                <p className="text-secondary">{t('create.selectParty', 'Select party first')}</p>
+              )}
+              {form.partyId && selectedPartyUsers.length === 0 && (
+                <p className="text-secondary">{t('create.actions.noUsers', 'No users available in selected party')}</p>
+              )}
+              {form.partyId && selectedPartyUsers.length > 0 && (
+                <div className="radio-group mt-2">
+                  {selectedPartyUsers.map((u: any) => (
+                    <label 
+                      key={u.id} 
+                      className={`radio-option ${selectedUserId === u.id ? 'selected' : ''}`}
+                    >
+                      <input
+                        type="radio"
+                        name="user"
+                        value={u.id}
+                        checked={selectedUserId === u.id}
+                        onChange={() => setSelectedUserId(u.id)}
+                      />
+                      <div>
+                        <div className="font-medium">{u.name}</div>
+                        <div className="text-tertiary" style={{ fontSize: 'var(--text-xs)' }}>
+                          {u.email}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div className="mt-2">
-          <button className="primary-button" type="submit" disabled={isSubmitting || !form.partyId || !form.subject}>
+          <button 
+            className="primary-button" 
+            type="submit" 
+            disabled={
+              isSubmitting || 
+              !form.partyId || 
+              !form.subject ||
+              (actionType === 'EVICT_USER_FROM_PARTY' && !selectedUserId)
+            }
+          >
             {isSubmitting ? t('create.submitting', 'Creating…') : t('create.button', 'Create discussion')}
           </button>
         </div>

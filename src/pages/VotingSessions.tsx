@@ -26,26 +26,35 @@ export default function VotingSessions() {
   const { t } = useTranslation(['sessions', 'common'])
   const { translateError } = useApiError()
   const { formatDateShort, formatTimeContext } = useFormatter()
-  const { user } = useAuth()
-  const myPartyIds = user?.partyIds ?? []
   const [gridCols, setGridCols] = useState(3)
-  const { data, error, isLoading, mutate } = useSWR<VotingSession[]>('/api/voting-sessions', swrJsonFetcher, { refreshInterval: 5000 })
+  const { data: sessions, error: sessionsError, isLoading: sessionsLoading, mutate: mutateSessions } = useSWR<VotingSession[]>('/api/voting-sessions', swrJsonFetcher, { refreshInterval: 5000 })
+  const { data: parties, error: partiesError, isLoading: partiesLoading } = useSWR<Party[]>('/api/parties', swrJsonFetcher, { refreshInterval: 60000 })
 
   const groupedByParty = useMemo(() => {
-    if (!data) return {}
+    if (!parties) return {}
     const byParty: Record<string, { party: Party; sessions: VotingSession[] }> = {}
     
-    for (const session of data) {
-      const partyId = session.party.id
-      
-      if (!byParty[partyId]) {
-        byParty[partyId] = { party: session.party, sessions: [] }
+    // First, create entries for ALL parties
+    for (const party of parties) {
+      byParty[party.id] = { party, sessions: [] }
+    }
+    
+    // Then, add sessions to their respective parties
+    if (sessions) {
+      for (const session of sessions) {
+        const partyId = session.party.id
+        
+        if (byParty[partyId]) {
+          byParty[partyId].sessions.push(session)
+        } else {
+          // Handle sessions with unknown/missing parties
+          byParty[partyId] = { party: session.party, sessions: [session] }
+        }
       }
-      byParty[partyId].sessions.push(session)
     }
     
     return byParty
-  }, [data])
+  }, [parties, sessions])
 
   const formatTimeInfo = (session: VotingSession) => {
     if (session.status === 'WAITING' && session.firstRoundStart) {
@@ -81,7 +90,7 @@ export default function VotingSessions() {
         </div>
       </div>
 
-      {isLoading && (
+      {(sessionsLoading || partiesLoading) && (
         <div className="party-section">
           <div className="party-header">
             <Skeleton style={{ height: 32, width: 200 }} />
@@ -97,15 +106,22 @@ export default function VotingSessions() {
         </div>
       )}
 
-      {error && (
+      {(sessionsError || partiesError) && (
         <NetworkError 
-          message={translateError(error)}
-          onRetry={() => mutate()}
+          message={translateError(sessionsError || partiesError)}
+          onRetry={() => {
+            mutateSessions()
+            // Also retry parties if there's an error
+            if (partiesError) {
+              // Trigger parties refetch
+              window.location.reload()
+            }
+          }}
           inline
         />
       )}
 
-      {!isLoading && !error && Object.entries(groupedByParty).map(([partyId, { party, sessions }]) => (
+      {!sessionsLoading && !partiesLoading && !sessionsError && !partiesError && Object.entries(groupedByParty).map(([partyId, { party, sessions }]) => (
         <div key={partyId} className="party-section">
           <div className="party-header">
             <h2 className="party-title">{party.name}</h2>
@@ -157,7 +173,7 @@ export default function VotingSessions() {
         </div>
       ))}
 
-      {!isLoading && !error && Object.keys(groupedByParty).length === 0 && (
+      {!sessionsLoading && !partiesLoading && !sessionsError && !partiesError && Object.keys(groupedByParty).length === 0 && (
         <EmptyState
           icon="🗳️"
           title={t('empty.title', 'No voting sessions yet')}

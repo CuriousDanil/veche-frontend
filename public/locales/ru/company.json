@@ -1,25 +1,38 @@
 {
   "title": "Компания",
-  "createParty": "Создать партию",
-  "party": {
+  "createParty": "Создать орган",
+    "party": {
     "members": "{{count}} участник",
-    "members_2": "{{count}} участника",
+    "members_2": "{{count}} участника", 
     "members_many": "{{count}} участников",
     "addUser": "Добавить пользователя",
-    "editParty": "Редактировать партию",
+    "editParty": "Редактировать орган",
+    "evictUser": "Исключить из органа",
     "featureComingSoon": "Функция скоро появится"
   },
+  "userModal": {
+    "title": "Информация о пользователе",
+    "name": "Имя: {{name}}",
+    "email": "Email: {{email}}",
+    "bio": "Описание: {{bio}}",
+    "noBio": "Описание не указано",
+    "evictButton": "Исключить из органа",
+    "confirmEvict": "Вы уверены, что хотите исключить этого пользователя?",
+    "close": "Закрыть"
+  },
   "editParty": {
-    "modalTitle": "Переименовать партию",
-    "newNameLabel": "Новое название партии",
-    "newNamePlaceholder": "Введите новое название партии",
+    "modalTitle": "Управление органом",
+    "newNameLabel": "Новое название органа",
+    "newNamePlaceholder": "Введите новое название органа",
     "currentName": "Текущее название: {{name}}",
-    "createDiscussion": "Создать обсуждение",
+    "renameButton": "Переименовать орган",
+    "deleteButton": "Удалить орган", 
+    "confirmDelete": "Вы уверены, что хотите удалить этот орган? Это действие нельзя отменить.",
     "cancel": "Отмена"
   },
   "loading": {
     "company": "Загрузка информации о компании...",
-    "parties": "Загрузка партий..."
+    "parties": "Загрузка органов..."
   },
   "errors": {
     "loadFailed": "Не удалось загрузить информацию о компании"

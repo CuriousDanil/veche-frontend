@@ -23,6 +23,10 @@ export function useApiError() {
       return t('unauthorized.subtitle', 'You don\'t have permission to view this page.')
     }
     
+    if (errorMessage.includes('403')) {
+      return t('page403.subtitle', 'You don\'t have permission to access this resource.')
+    }
+    
     if (errorMessage.includes('404')) {
       return t('api.notFound', 'The requested resource was not found.')
     }
@@ -52,13 +56,17 @@ export function useApiError() {
     return errorMessage || t('common:errors.unknown', 'An unexpected error occurred.')
   }, [t])
 
-  const getErrorType = useCallback((error: any): '404' | '500' | 'network' | 'unauthorized' => {
+  const getErrorType = useCallback((error: any): '404' | '403' | '500' | 'network' | 'unauthorized' => {
     if (!error) return '500'
 
     const errorMessage = error.message || String(error)
 
     if (errorMessage.includes('NETWORK') || errorMessage.includes('fetch')) {
       return 'network'
+    }
+    
+    if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
+      return '403'
     }
     
     if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
