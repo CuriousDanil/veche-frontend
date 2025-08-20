@@ -1,0 +1,23 @@
+{
+  "hero": {
+    "eyebrow": "Participatory governance",
+    "title": "Veche — the home of participatory democracy",
+    "subtitle": "Shape decisions together. Join as a founder to start your organization and build consensus through structured discussions.",
+    "getStarted": "Get Started",
+    "signIn": "Sign In"
+  },
+  "features": {
+    "discussions": {
+      "title": "Structured Discussions",
+      "description": "Create focused discussions with clear objectives and transparent voting processes for better decision-making."
+    },
+    "voting": {
+      "title": "Democratic Voting",
+      "description": "Multi-round voting sessions ensure every voice is heard and decisions reflect the true consensus of your organization."
+    },
+    "management": {
+      "title": "Organization Management", 
+      "description": "Manage parties, users, and organizational structure with intuitive tools designed for collaborative governance."
+    }
+  }
+}

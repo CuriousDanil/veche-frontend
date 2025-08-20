@@ -1,6 +1,8 @@
 import { useMemo, useState, useEffect } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import { useLanguageNavigate } from '../hooks/useLanguage'
 import { useAuth } from '../context/AuthContext'
 import { createVotingSession } from '../lib/votingSessions'
 import useSWR from 'swr'
@@ -11,7 +13,8 @@ type Party = { id: string; name: string }
 type Discussion = { id: string; subject: string; status: 'WAITING' | 'VOTING' | 'FINAL_VOTING' | 'RESOLVED' | 'ARCHIVED'; party: Party }
 
 export default function CreateVotingSession() {
-  const navigate = useNavigate()
+  const { t } = useTranslation('sessions')
+  const languageNavigate = useLanguageNavigate()
   const [searchParams] = useSearchParams()
   const { user } = useAuth()
   const myPartyIds = user?.partyIds ?? []
@@ -66,7 +69,7 @@ export default function CreateVotingSession() {
     e.preventDefault()
     const isValid = name.trim().length > 0 && partyId && discussionIds.length > 0
     if (!isValid) {
-      setStatus('Please fill name, choose a party, and select at least one discussion.')
+      setStatus(t('create.validation.fillRequired', 'Please fill name, choose a party, and select at least one discussion.'))
       return
     }
     setIsSubmitting(true)
@@ -80,7 +83,7 @@ export default function CreateVotingSession() {
         secondRoundStartsAt: toInstantOrNull(secondRoundStartsAt),
         endsAt: toInstantOrNull(endsAt),
       })
-      navigate('/voting-sessions')
+      languageNavigate('/voting-sessions')
     } catch (err) {
       setStatus((err as Error).message)
     } finally {
@@ -91,19 +94,26 @@ export default function CreateVotingSession() {
   return (
     <div className="container container-narrow">
       <div className="mt-8 mb-6 text-center">
-        <h2>Create voting session</h2>
-        <p className="text-secondary mt-2">Organize discussions into a structured voting session with time-based rounds.</p>
+        <h2>{t('create.title', 'Create voting session')}</h2>
+        <p className="text-secondary mt-2">{t('create.subtitle', 'Organize discussions into a structured voting session with time-based rounds.')}</p>
       </div>
       <form className="form card" onSubmit={submit}>
         <div className="field">
-          <label htmlFor="name">Name</label>
-          <input id="name" className="text-input" type="text" value={name} onChange={(e) => setName(e.target.value)} />
+          <label htmlFor="name">{t('create.name.label', 'Name')}</label>
+          <input 
+            id="name" 
+            className="text-input" 
+            type="text" 
+            value={name} 
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t('create.name.placeholder', 'Enter session name')}
+          />
         </div>
         <div className="field">
-          <label>Select party</label>
+          <label>{t('create.selectParty', 'Select party')}</label>
           {(pLoad || dLoad) && <SkeletonText lines={2} />}
           {!pLoad && myParties.length === 0 && (
-            <p className="text-secondary">No parties available.</p>
+            <p className="text-secondary">{t('create.noParties', 'No parties available.')}</p>
           )}
           {!pLoad && myParties.length > 0 && (
             <div className="radio-group">
@@ -123,9 +133,9 @@ export default function CreateVotingSession() {
           )}
         </div>
         <div className="field">
-          <label>Select discussions (WAITING status)</label>
+          <label>{t('create.selectDiscussions', 'Select discussions (WAITING status)')}</label>
           {!dLoad && waitingDiscussions.length === 0 && (
-            <p className="text-secondary">No WAITING discussions available in this party.</p>
+            <p className="text-secondary">{t('create.noDiscussions', 'No WAITING discussions available in this party.')}</p>
           )}
           {!dLoad && waitingDiscussions.length > 0 && (
             <div className="checkbox-group">
@@ -156,7 +166,7 @@ export default function CreateVotingSession() {
           )}
         </div>
         <div className="field">
-          <label htmlFor="firstRoundStartsAt">First round starts at</label>
+          <label htmlFor="firstRoundStartsAt">{t('create.timeFields.firstRound', 'First round starts at')}</label>
           <input 
             id="firstRoundStartsAt"
             className="text-input" 
@@ -165,11 +175,11 @@ export default function CreateVotingSession() {
             onChange={(e) => setFirstRoundStartsAt(e.target.value)} 
           />
           <div className="text-tertiary mt-2" style={{ fontSize: 'var(--text-xs)' }}>
-            All times are in UTC. Participants will see times in their local timezone.
+            {t('create.timeFields.utcNote', 'All times are in UTC. Participants will see times in their local timezone.')}
           </div>
         </div>
         <div className="field">
-          <label htmlFor="secondRoundStartsAt">Second round starts at</label>
+          <label htmlFor="secondRoundStartsAt">{t('create.timeFields.secondRound', 'Second round starts at')}</label>
           <input 
             id="secondRoundStartsAt"
             className="text-input" 
@@ -179,7 +189,7 @@ export default function CreateVotingSession() {
           />
         </div>
         <div className="field">
-          <label htmlFor="endsAt">Session ends at</label>
+          <label htmlFor="endsAt">{t('create.timeFields.endsAt', 'Session ends at')}</label>
           <input 
             id="endsAt"
             className="text-input" 
@@ -194,14 +204,14 @@ export default function CreateVotingSession() {
             type="submit" 
             disabled={isSubmitting || !name.trim() || !partyId || discussionIds.length === 0}
           >
-            {isSubmitting ? 'Creating…' : 'Create session'}
+            {isSubmitting ? t('create.submitting', 'Creating…') : t('create.button', 'Create session')}
           </button>
           <button 
             type="button" 
             className="secondary-button" 
-            onClick={() => navigate('/voting-sessions')}
+            onClick={() => languageNavigate('/voting-sessions')}
           >
-            Cancel
+            {t('common:buttons.cancel', 'Cancel')}
           </button>
         </div>
         {status && <p className="mt-4 text-secondary">{status}</p>}

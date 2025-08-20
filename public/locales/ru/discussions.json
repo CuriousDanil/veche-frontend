@@ -1,0 +1,78 @@
+{
+  "title": "Обсуждения",
+  "create": {
+    "title": "Создать обсуждение",
+    "subtitle": "Выберите партию и определите тему и содержание.",
+    "button": "Создать обсуждение",
+    "submitting": "Создание...",
+    "subject": {
+      "label": "Тема",
+      "placeholder": "Введите тему обсуждения"
+    },
+    "content": {
+      "label": "Содержание",
+      "placeholder": "Введите содержание обсуждения"
+    },
+    "selectParty": "Выберите партию",
+    "noParties": "Партии для вашего аккаунта не найдены.",
+    "actions": {
+      "label": "Добавить действие (необязательно)",
+      "select": "Выберите действие...",
+      "renameParty": "Переименовать партию",
+      "renameCompany": "Переименовать компанию",
+      "newNamePlaceholder": "Введите новое название"
+    }
+  },
+  "detail": {
+    "edit": "Редактировать",
+    "save": "Сохранить",
+    "saving": "Сохранение...",
+    "cancel": "Отмена",
+    "creator": "Создатель: {{name}}",
+    "party": "Партия: {{name}}",
+    "content": "Содержание обсуждения",
+    "updated": "Обсуждение успешно обновлено",
+    "saveFailed": "Ошибка сохранения: {{error}}",
+    "votes": {
+      "agree": "За",
+      "disagree": "Против",
+      "yourVote": "Ваш голос: {{vote}}",
+      "totalVotes": "{{count}} голос",
+      "totalVotes_2": "{{count}} голоса",
+      "totalVotes_many": "{{count}} голосов"
+    },
+    "comments": {
+      "title": "Комментарии",
+      "add": "Добавить комментарий",
+      "posting": "Отправка...",
+      "minLength": "Комментарии должны содержать минимум {{count}} символов",
+      "placeholder": "Напишите ваш комментарий...",
+      "totalComments": "{{count}} комментарий",
+      "totalComments_2": "{{count}} комментария",
+      "totalComments_many": "{{count}} комментариев"
+    },
+    "actions": {
+      "addAction": "Добавить действие",
+      "statusControl": "Управление статусом",
+      "startVoting": "Начать голосование",
+      "startFinalVoting": "Начать финальное голосование",
+      "resolve": "Решить",
+      "archive": "Архивировать"
+    }
+  },
+  "list": {
+    "title": "Обсуждения",
+    "newDiscussion": "Новое обсуждение",
+    "noDiscussionsInParty": "Пока нет обсуждений в этой партии.",
+    "noDiscussionsTotal": "Пока нет обсуждений",
+    "loading": "Загрузка обсуждений...",
+    "gridView": "Вид сетки:",
+    "createdBy": "От {{name}}",
+    "createFirstDiscussion": "Создать ваше первое обсуждение"
+  },
+  "empty": {
+    "title": "Пока нет обсуждений",
+    "description": "Начните обсуждение, чтобы вовлечь участников вашей партии",
+    "action": "Создать первое обсуждение"
+  }
+}

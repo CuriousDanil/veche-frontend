@@ -1,9 +1,15 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import LanguageLink from '../components/LanguageLink'
+import { useTranslation } from 'react-i18next'
 import useSWR from 'swr'
 import { swrJsonFetcher } from '../lib/swr'
 import { useAuth } from '../context/AuthContext'
 import { Skeleton } from '../components/Skeleton'
+import SEOHead from '../components/SEOHead'
+import EmptyState from '../components/EmptyState'
+import NetworkError from '../components/NetworkError'
+import { useApiError } from '../hooks/useApiError'
+import { useFormatter } from '../hooks/useFormatter'
 
 type Party = { id: string; name: string }
 type VotingSession = {
@@ -17,10 +23,13 @@ type VotingSession = {
 }
 
 export default function VotingSessions() {
+  const { t } = useTranslation(['sessions', 'common'])
+  const { translateError } = useApiError()
+  const { formatDateShort, formatTimeContext } = useFormatter()
   const { user } = useAuth()
   const myPartyIds = user?.partyIds ?? []
   const [gridCols, setGridCols] = useState(3)
-  const { data, error, isLoading } = useSWR<VotingSession[]>('/api/voting-sessions', swrJsonFetcher, { refreshInterval: 5000 })
+  const { data, error, isLoading, mutate } = useSWR<VotingSession[]>('/api/voting-sessions', swrJsonFetcher, { refreshInterval: 5000 })
 
   const groupedByParty = useMemo(() => {
     if (!data) return {}
@@ -40,20 +49,25 @@ export default function VotingSessions() {
 
   const formatTimeInfo = (session: VotingSession) => {
     if (session.status === 'WAITING' && session.firstRoundStart) {
-      const date = new Date(session.firstRoundStart)
-      return `Starts ${date.toLocaleDateString()}`
+      return formatTimeContext(session.firstRoundStart, 'remaining')
     }
     if (session.endTime) {
-      const date = new Date(session.endTime)
-      return `Ends ${date.toLocaleDateString()}`
+      const now = new Date()
+      const endDate = new Date(session.endTime)
+      if (endDate > now) {
+        return formatTimeContext(session.endTime, 'remaining')
+      } else {
+        return formatTimeContext(session.endTime, 'ago')
+      }
     }
     return null
   }
 
   return (
     <div className="container">
+      <SEOHead page="sessions" />
       <div className="mt-8 mb-6" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h2>Voting sessions</h2>
+        <h2>{t('list.title', 'Voting Sessions')}</h2>
         <div className="grid-controls">
           {[1, 2, 3, 4].map(cols => (
             <button
@@ -83,30 +97,38 @@ export default function VotingSessions() {
         </div>
       )}
 
-      {error && <p className="text-secondary">{String(error)}</p>}
+      {error && (
+        <NetworkError 
+          message={translateError(error)}
+          onRetry={() => mutate()}
+          inline
+        />
+      )}
 
       {!isLoading && !error && Object.entries(groupedByParty).map(([partyId, { party, sessions }]) => (
         <div key={partyId} className="party-section">
           <div className="party-header">
             <h2 className="party-title">{party.name}</h2>
             <div className="party-controls">
-              <Link 
+              <LanguageLink 
                 to={`/voting-sessions/new${party.id !== 'unknown' ? `?partyId=${party.id}` : ''}`} 
                 className="primary-button"
               >
-                New session
-              </Link>
+                {t('list.newSession', 'New session')}
+              </LanguageLink>
             </div>
           </div>
           
           {sessions.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-secondary">No voting sessions yet in this party.</p>
-            </div>
+            <EmptyState
+              icon="🗳️"
+              title={t('list.noSessions', 'No sessions found in this party')}
+              size="small"
+            />
           ) : (
             <div className={`content-grid cols-${gridCols}`}>
               {sessions.map((session) => (
-                <Link 
+                <LanguageLink 
                   key={session.id} 
                   to={`/voting-sessions/${session.id}`} 
                   className="content-card"
@@ -119,16 +141,16 @@ export default function VotingSessions() {
                       </div>
                     )}
                     <div className="text-tertiary">
-                      Click to view details and manage this voting session
+                      {t('list.clickToView', 'Click to view details and manage this voting session')}
                     </div>
                   </div>
                   <div className="content-card-footer">
                     <span className="content-card-creator">{party.name}</span>
                     <span className={`status-badge ${session.status.toLowerCase().replace('_', '-')}`}>
-                      {session.status.replace('_', ' ')}
+                      {t(`common:status.${session.status.toLowerCase().replace('_', '')}`, session.status.replace('_', ' '))}
                     </span>
                   </div>
-                </Link>
+                </LanguageLink>
               ))}
             </div>
           )}
@@ -136,12 +158,16 @@ export default function VotingSessions() {
       ))}
 
       {!isLoading && !error && Object.keys(groupedByParty).length === 0 && (
-        <div className="text-center py-12">
-          <h3 className="text-secondary mb-4">No voting sessions yet</h3>
-          <Link to="/voting-sessions/new" className="primary-button">
-            Create your first session
-          </Link>
-        </div>
+        <EmptyState
+          icon="🗳️"
+          title={t('empty.title', 'No voting sessions yet')}
+          description={t('empty.description', 'Create a voting session to organize discussions into structured voting rounds')}
+          primaryAction={{
+            label: t('empty.action', 'Create your first session'),
+            href: '/voting-sessions/new'
+          }}
+          size="large"
+        />
       )}
     </div>
   )

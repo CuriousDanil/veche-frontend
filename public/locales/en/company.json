@@ -1,0 +1,26 @@
+{
+  "title": "Company",
+  "createParty": "Create party",
+  "party": {
+    "members": "{{count}} member",
+    "members_plural": "{{count}} members",
+    "addUser": "Add user",
+    "editParty": "Edit party",
+    "featureComingSoon": "Feature coming soon"
+  },
+  "editParty": {
+    "modalTitle": "Rename Party",
+    "newNameLabel": "New party name",
+    "newNamePlaceholder": "Enter new party name",
+    "currentName": "Current name: {{name}}",
+    "createDiscussion": "Create Discussion",
+    "cancel": "Cancel"
+  },
+  "loading": {
+    "company": "Loading company information...",
+    "parties": "Loading parties..."
+  },
+  "errors": {
+    "loadFailed": "Failed to load company information"
+  }
+}

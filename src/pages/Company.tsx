@@ -1,13 +1,18 @@
 import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import LanguageLink from '../components/LanguageLink'
+import { useTranslation } from 'react-i18next'
+import { useLanguageNavigate } from '../hooks/useLanguage'
 import useSWR from 'swr'
 import { swrJsonFetcher } from '../lib/swr'
 import type { Company } from '../types'
 import { Skeleton, SkeletonText } from '../components/Skeleton'
 import Modal from '../components/Modal'
+import { useFormatter } from '../hooks/useFormatter'
 
 export default function CompanyPage() {
-  const navigate = useNavigate()
+  const { t } = useTranslation('company')
+  const { formatMemberCount } = useFormatter()
+  const languageNavigate = useLanguageNavigate()
   const { data: company, error, isLoading } = useSWR<Company>('/api/company/my-company', swrJsonFetcher, { refreshInterval: 15000 })
   
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -49,7 +54,7 @@ export default function CompanyPage() {
       actionName: newPartyName.trim(),
       subject: `Rename party to "${newPartyName.trim()}"`
     })
-    navigate(`/discussions/new?${params.toString()}`)
+    languageNavigate(`/discussions/new?${params.toString()}`)
   }
 
   return (
@@ -65,7 +70,7 @@ export default function CompanyPage() {
         <div>
           <div className="mt-6 mb-4" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h2>{company.name}</h2>
-            <Link to="/company/parties/new" className="primary-button">Create party</Link>
+            <LanguageLink to="/company/parties/new" className="primary-button">{t('createParty')}</LanguageLink>
           </div>
           <div style={{
             display: 'grid',
@@ -83,18 +88,18 @@ export default function CompanyPage() {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-md)' }}>
                       <h3 className="font-semibold">{group.name}</h3>
                       <div className="button-group">
-                        <button className="secondary-button" type="button" title="Feature coming soon">Add user</button>
+                        <button className="secondary-button" type="button" title={t('party.featureComingSoon')}>{t('party.addUser')}</button>
                         <button 
                           className="secondary-button" 
                           type="button" 
                           onClick={() => handleEditParty(pid, group.name)}
                         >
-                          Edit party
+                          {t('party.editParty')}
                         </button>
                       </div>
                     </div>
                     <div className="text-tertiary mb-3" style={{ fontSize: 'var(--text-sm)' }}>
-                      {group.users.length} member{group.users.length !== 1 ? 's' : ''}
+                      {formatMemberCount(group.users.length)}
                     </div>
                     <div style={{ display: 'grid', gap: 'var(--space-xs)', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
                       {group.users.map((u, idx) => (
@@ -119,23 +124,23 @@ export default function CompanyPage() {
       <Modal 
         isOpen={isEditModalOpen} 
         onClose={handleCloseModal} 
-        title="Rename Party"
+        title={t('editParty.modalTitle')}
       >
         <div className="form">
           <div className="field">
-            <label htmlFor="newPartyName">New party name</label>
+            <label htmlFor="newPartyName">{t('editParty.newNameLabel')}</label>
             <input
               id="newPartyName"
               className="text-input"
               type="text"
               value={newPartyName}
               onChange={(e) => setNewPartyName(e.target.value)}
-              placeholder="Enter new party name"
+              placeholder={t('editParty.newNamePlaceholder')}
               autoFocus
             />
             {editingParty && (
               <div className="text-tertiary mt-2" style={{ fontSize: 'var(--text-xs)' }}>
-                Current name: {editingParty.name}
+                {t('editParty.currentName', { name: editingParty.name })}
               </div>
             )}
           </div>
@@ -145,13 +150,13 @@ export default function CompanyPage() {
               onClick={handleConfirmEdit}
               disabled={!newPartyName.trim() || newPartyName.trim() === editingParty?.name}
             >
-              Create Discussion
+              {t('editParty.createDiscussion')}
             </button>
             <button 
               className="secondary-button" 
               onClick={handleCloseModal}
             >
-              Cancel
+              {t('editParty.cancel')}
             </button>
           </div>
         </div>

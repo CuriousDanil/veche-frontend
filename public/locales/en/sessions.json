@@ -1,0 +1,62 @@
+{
+  "title": "Voting Sessions",
+  "create": {
+    "title": "Create voting session",
+    "subtitle": "Organize discussions into a structured voting session with time-based rounds.",
+    "button": "Create session",
+    "submitting": "Creating...",
+    "name": {
+      "label": "Name",
+      "placeholder": "Enter session name"
+    },
+    "selectParty": "Select party",
+    "selectDiscussions": "Select discussions (WAITING status)",
+    "noDiscussions": "No WAITING discussions available in this party.",
+    "timeFields": {
+      "firstRound": "First round starts at",
+      "secondRound": "Second round starts at", 
+      "endsAt": "Session ends at",
+      "utcNote": "All times are in UTC. Participants will see times in their local timezone."
+    },
+    "validation": {
+      "fillRequired": "Please fill name, choose a party, and select at least one discussion."
+    }
+  },
+  "detail": {
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "saved": "Saved",
+    "party": "Party",
+    "firstRound": "First round starts at",
+    "secondRound": "Second round starts at",
+    "endsAt": "Session ends at",
+    "preview": "Preview: {{time}}",
+    "discussions": "Discussions ({{count}})",
+    "validation": {
+      "required": "Please provide name, party, and at least one discussion."
+    },
+    "errors": {
+      "saveFailed": "Failed to save: {{error}}",
+      "reloadFailed": "Failed to reload: {{error}}"
+    }
+  },
+  "list": {
+    "title": "Voting Sessions",
+    "newSession": "New session",
+    "noSessions": "No sessions found in this party",
+    "loading": "Loading sessions...",
+    "gridView": "Grid view:",
+    "clickToView": "Click to view details and manage this voting session",
+    "timeInfo": {
+      "startsIn": "Starts in {{time}}",
+      "endsIn": "Ends in {{time}}",
+      "ended": "Ended {{time}} ago"
+    }
+  },
+  "empty": {
+    "title": "No voting sessions yet",
+    "description": "Create a voting session to organize discussions into structured voting rounds",
+    "action": "Create your first session"
+  }
+}

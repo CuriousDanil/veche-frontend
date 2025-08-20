@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { apiFetch } from '../lib/api'
 import { postComment, patchComment } from '../lib/comments'
 import { patchDiscussion } from '../lib/discussions'
@@ -26,6 +27,7 @@ type Discussion = {
 }
 
 export default function DiscussionDetail() {
+  const { t } = useTranslation(['discussions', 'common'])
   const { id } = useParams()
   const { user } = useAuth()
   const [item, setItem] = useState<Discussion | null>(null)
@@ -180,13 +182,13 @@ export default function DiscussionDetail() {
             {isAuthor && (
               <div className="button-group">
                 {!isEditing ? (
-                  <button className="secondary-button" onClick={() => setIsEditing(true)}>Edit</button>
+                  <button className="secondary-button" onClick={() => setIsEditing(true)}>{t('detail.edit', 'Edit')}</button>
                 ) : (
                   <>
                     <button className="primary-button" onClick={saveDiscussion} disabled={isSaving}>
-                      {isSaving ? 'Saving...' : 'Save'}
+                      {isSaving ? t('detail.saving', 'Saving...') : t('detail.save', 'Save')}
                     </button>
-                    <button className="secondary-button" onClick={() => { setIsEditing(false); setEditTitle(item.subject); setEditBody(item.content); }}>Cancel</button>
+                    <button className="secondary-button" onClick={() => { setIsEditing(false); setEditTitle(item.subject); setEditBody(item.content); }}>{t('detail.cancel', 'Cancel')}</button>
                   </>
                 )}
               </div>
@@ -196,7 +198,7 @@ export default function DiscussionDetail() {
           {/* Content Section */}
           <div className="card">
             <div className="field">
-              <label>Discussion content</label>
+              <label>{t('detail.content', 'Discussion content')}</label>
               {!isEditing ? (
                 <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{item.content}</div>
               ) : (
@@ -215,17 +217,17 @@ export default function DiscussionDetail() {
           {isAuthor && (
             <div className="card mt-6">
               <div className="field">
-                <label>Add action</label>
+                <label>{t('detail.actions.addAction', 'Add action')}</label>
                 <select className="select-input" value={actionType} onChange={(e) => setActionType(e.target.value as any)}>
-                  <option value="NONE">Select an action…</option>
-                  <option value="RENAME_PARTY">Rename party</option>
-                  <option value="RENAME_COMPANY">Rename company</option>
+                  <option value="NONE">{t('create.actions.select', 'Select an action…')}</option>
+                  <option value="RENAME_PARTY">{t('create.actions.renameParty', 'Rename party')}</option>
+                  <option value="RENAME_COMPANY">{t('create.actions.renameCompany', 'Rename company')}</option>
                 </select>
                 {(actionType === 'RENAME_PARTY' || actionType === 'RENAME_COMPANY') && (
                   <div className="mt-3">
                     <input 
                       className="text-input" 
-                      placeholder="Enter new name" 
+                      placeholder={t('create.actions.newNamePlaceholder', 'Enter new name')} 
                       value={actionName} 
                       onChange={(e) => setActionName(e.target.value)} 
                     />

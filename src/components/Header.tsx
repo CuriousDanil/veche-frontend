@@ -1,13 +1,18 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext'
+import { useLanguageNavigate } from '../hooks/useLanguage'
+import LanguageSwitcher from './LanguageSwitcher'
+import LanguageLink from './LanguageLink'
 
 export default function Header() {
+  const { t } = useTranslation('common')
   const { user, logout } = useAuth()
-  const navigate = useNavigate()
+  const languageNavigate = useLanguageNavigate()
 
   const handleLogout = () => {
     logout()
-    navigate('/')
+    languageNavigate('/')
   }
 
   return (
@@ -16,20 +21,22 @@ export default function Header() {
         {user ? (
           <span className="brand">Veche</span>
         ) : (
-          <Link to="/" className="brand">Veche</Link>
+          <LanguageLink to="/" className="brand">Veche</LanguageLink>
         )}
         <nav className="nav">
           {user ? (
             <>
-              <Link to="/company" className="link">{(useAuth().company?.name) ?? 'Company'}</Link>
-              <Link to="/discussions" className="link">Discussions</Link>
-              <Link to="/voting-sessions" className="link">Sessions</Link>
-              <button className="primary-button" onClick={handleLogout}>Log out</button>
+              <LanguageLink to="/company" className="link">{(useAuth().company?.name) ?? t('nav.company', 'Company')}</LanguageLink>
+              <LanguageLink to="/discussions" className="link">{t('nav.discussions', 'Discussions')}</LanguageLink>
+              <LanguageLink to="/voting-sessions" className="link">{t('nav.sessions', 'Sessions')}</LanguageLink>
+              <LanguageSwitcher compact />
+              <button className="primary-button" onClick={handleLogout}>{t('nav.logout', 'Log out')}</button>
             </>
           ) : (
             <>
-              <Link to="/login" className="link">Log in</Link>
-              <Link to="/register" className="primary-button">Register</Link>
+              <LanguageSwitcher compact />
+              <LanguageLink to="/login" className="link">{t('nav.login', 'Log in')}</LanguageLink>
+              <LanguageLink to="/register" className="primary-button">{t('nav.register', 'Register')}</LanguageLink>
             </>
           )}
         </nav>

@@ -1,3 +1,6 @@
+// Legacy datetime utilities - these will be replaced by useFormatter hook gradually
+// Keeping them for backward compatibility during the transition
+
 function pad2(n: number): string {
   return n < 10 ? `0${n}` : String(n)
 }
@@ -37,6 +40,41 @@ export function timeLeftDhM(iso?: string | null): string {
   const hours = Math.floor((totalMinutes - days * 24 * 60) / 60)
   const minutes = totalMinutes % 60
   return `${days}d ${pad2(hours)}h ${pad2(minutes)}m`
+}
+
+// New i18n-aware datetime utilities
+export function createDateTimeFormatter(locale: string) {
+  return {
+    // Format date according to locale
+    formatDate: (date: string | Date) => {
+      return new Intl.DateTimeFormat(locale, {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      }).format(new Date(date))
+    },
+    
+    // Format date and time according to locale
+    formatDateTime: (date: string | Date) => {
+      return new Intl.DateTimeFormat(locale, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: locale.startsWith('en')
+      }).format(new Date(date))
+    },
+    
+    // Format time only
+    formatTime: (date: string | Date) => {
+      return new Intl.DateTimeFormat(locale, {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: locale.startsWith('en')
+      }).format(new Date(date))
+    }
+  }
 }
 
 

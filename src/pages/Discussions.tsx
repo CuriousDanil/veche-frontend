@@ -1,9 +1,15 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import LanguageLink from '../components/LanguageLink'
+import { useTranslation } from 'react-i18next'
 import useSWR from 'swr'
 import { swrJsonFetcher } from '../lib/swr'
 import { useAuth } from '../context/AuthContext'
 import { Skeleton } from '../components/Skeleton'
+import SEOHead from '../components/SEOHead'
+import EmptyState from '../components/EmptyState'
+import LoadingState from '../components/LoadingState'
+import NetworkError from '../components/NetworkError'
+import { useApiError } from '../hooks/useApiError'
 
 type Party = { id: string; name: string }
 type Discussion = {
@@ -18,10 +24,12 @@ type Discussion = {
 }
 
 export default function Discussions() {
+  const { t } = useTranslation(['discussions', 'common'])
+  const { translateError } = useApiError()
   const { user } = useAuth()
   const myPartyIds = user?.partyIds ?? []
   const [gridCols, setGridCols] = useState(3)
-  const { data, error, isLoading } = useSWR<Discussion[]>('/api/discussions', swrJsonFetcher, { refreshInterval: 5000 })
+  const { data, error, isLoading, mutate } = useSWR<Discussion[]>('/api/discussions', swrJsonFetcher, { refreshInterval: 5000 })
 
   const groupedByParty = useMemo(() => {
     if (!data) return {}
@@ -42,8 +50,9 @@ export default function Discussions() {
 
   return (
     <div className="container">
+      <SEOHead page="discussions" />
       <div className="mt-8 mb-6" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h2>Discussions</h2>
+        <h2>{t('list.title', 'Discussions')}</h2>
         <div className="grid-controls">
           {[1, 2, 3, 4].map(cols => (
             <button
@@ -73,30 +82,38 @@ export default function Discussions() {
         </div>
       )}
 
-      {error && <p className="text-secondary">{String(error)}</p>}
+      {error && (
+        <NetworkError 
+          message={translateError(error)}
+          onRetry={() => mutate()}
+          inline
+        />
+      )}
 
       {!isLoading && !error && Object.entries(groupedByParty).map(([partyId, { party, discussions }]) => (
         <div key={partyId} className="party-section">
           <div className="party-header">
             <h2 className="party-title">{party.name}</h2>
             <div className="party-controls">
-              <Link 
+              <LanguageLink 
                 to={`/discussions/new${party.id !== 'unknown' ? `?partyId=${party.id}` : ''}`} 
                 className="primary-button"
               >
-                New discussion
-              </Link>
+                {t('list.newDiscussion', 'New discussion')}
+              </LanguageLink>
             </div>
           </div>
           
           {discussions.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-secondary">No discussions yet in this party.</p>
-            </div>
+            <EmptyState
+              icon="💬"
+              title={t('list.noDiscussionsInParty', 'No discussions yet in this party.')}
+              size="small"
+            />
           ) : (
             <div className={`content-grid cols-${gridCols}`}>
               {discussions.map((discussion) => (
-                <Link 
+                <LanguageLink 
                   key={discussion.id} 
                   to={`/discussions/${discussion.id}`} 
                   className="content-card"
@@ -104,12 +121,12 @@ export default function Discussions() {
                   <h3 className="content-card-title">{discussion.subject}</h3>
                   <p className="content-card-body">{discussion.content}</p>
                   <div className="content-card-footer">
-                    <span className="content-card-creator">By {discussion.creatorName}</span>
+                    <span className="content-card-creator">{t('list.createdBy', 'By {{name}}', { name: discussion.creatorName })}</span>
                     <span className={`status-badge ${discussion.status.toLowerCase().replace('_', '-')}`}>
-                      {discussion.status.replace('_', ' ')}
+                      {t(`common:status.${discussion.status.toLowerCase().replace('_', '')}`, discussion.status.replace('_', ' '))}
                     </span>
                   </div>
-                </Link>
+                </LanguageLink>
               ))}
             </div>
           )}
@@ -117,12 +134,16 @@ export default function Discussions() {
       ))}
 
       {!isLoading && !error && Object.keys(groupedByParty).length === 0 && (
-        <div className="text-center py-12">
-          <h3 className="text-secondary mb-4">No discussions yet</h3>
-          <Link to="/discussions/new" className="primary-button">
-            Create your first discussion
-          </Link>
-        </div>
+        <EmptyState
+          icon="💬"
+          title={t('empty.title', 'No discussions yet')}
+          description={t('empty.description', 'Start a discussion to engage your party members')}
+          primaryAction={{
+            label: t('empty.action', 'Create first discussion'),
+            href: '/discussions/new'
+          }}
+          size="large"
+        />
       )}
     </div>
   )

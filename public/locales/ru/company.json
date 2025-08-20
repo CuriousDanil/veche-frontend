@@ -1,0 +1,27 @@
+{
+  "title": "Компания",
+  "createParty": "Создать партию",
+  "party": {
+    "members": "{{count}} участник",
+    "members_2": "{{count}} участника",
+    "members_many": "{{count}} участников",
+    "addUser": "Добавить пользователя",
+    "editParty": "Редактировать партию",
+    "featureComingSoon": "Функция скоро появится"
+  },
+  "editParty": {
+    "modalTitle": "Переименовать партию",
+    "newNameLabel": "Новое название партии",
+    "newNamePlaceholder": "Введите новое название партии",
+    "currentName": "Текущее название: {{name}}",
+    "createDiscussion": "Создать обсуждение",
+    "cancel": "Отмена"
+  },
+  "loading": {
+    "company": "Загрузка информации о компании...",
+    "parties": "Загрузка партий..."
+  },
+  "errors": {
+    "loadFailed": "Не удалось загрузить информацию о компании"
+  }
+}

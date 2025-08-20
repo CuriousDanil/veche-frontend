@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import LanguageLink from '../components/LanguageLink'
 import useSWR from 'swr'
 import { swrJsonFetcher } from '../lib/swr'
 import { apiFetch } from '../lib/api'
@@ -7,6 +9,7 @@ import { useAuth } from '../context/AuthContext'
 import { updateVotingSession } from '../lib/votingSessions'
 import { formatEuFromIso, formatEuFromInput, timeLeftDhM } from '../lib/datetime'
 import { Skeleton, SkeletonText } from '../components/Skeleton'
+import { useFormatter } from '../hooks/useFormatter'
 
 type Party = { id: string; name: string }
 type Discussion = { id: string; subject: string; status: string; party: Party }
@@ -45,6 +48,8 @@ function toInstantOrNull(value: string): string | null {
 }
 
 export default function VotingSessionDetail() {
+  const { t } = useTranslation(['sessions', 'common'])
+  const { formatDateTime, formatTimeContext } = useFormatter()
   const { id } = useParams()
   const { user } = useAuth()
   const canEdit = !!user?.canManageSessions
@@ -164,7 +169,7 @@ export default function VotingSessionDetail() {
                 <h2>{session.name}</h2>
                 <div className="mt-1">
                   <span className={`status-badge ${session.status.toLowerCase().replace('_', '-')}`}>
-                    {session.status.replace('_', ' ')}
+                    {t(`common:status.${session.status.toLowerCase().replace('_', '')}`, session.status.replace('_', ' '))}
                   </span>
                 </div>
               </div>
@@ -172,11 +177,11 @@ export default function VotingSessionDetail() {
             {canEdit && (
               <div className="button-group">
                 {!isEditing ? (
-                  <button className="secondary-button" onClick={startEdit}>Edit</button>
+                  <button className="secondary-button" onClick={startEdit}>{t('detail.edit', 'Edit')}</button>
                 ) : (
                   <>
-                    <button className="primary-button" onClick={saveEdit}>Save</button>
-                    <button className="secondary-button" onClick={cancelEdit}>Cancel</button>
+                    <button className="primary-button" onClick={saveEdit}>{t('detail.save', 'Save')}</button>
+                    <button className="secondary-button" onClick={cancelEdit}>{t('detail.cancel', 'Cancel')}</button>
                   </>
                 )}
               </div>
@@ -188,7 +193,7 @@ export default function VotingSessionDetail() {
 
             {/* Party */}
             <div className="field">
-              <label>Party</label>
+              <label>{t('detail.party', 'Party')}</label>
               {!isEditing ? (
                 <div className="font-medium">{session.party.name}</div>
               ) : (
@@ -211,7 +216,7 @@ export default function VotingSessionDetail() {
 
             {/* Timestamps */}
             <div className="field">
-              <label>First round starts at</label>
+              <label>{t('detail.firstRound', 'First round starts at')}</label>
               {!isEditing ? (
                 <div>
                   <div className="font-medium">{formatEuFromIso(session.firstRoundStart)}</div>
@@ -237,7 +242,7 @@ export default function VotingSessionDetail() {
             </div>
             
             <div className="field">
-              <label>Second round starts at</label>
+              <label>{t('detail.secondRound', 'Second round starts at')}</label>
               {!isEditing ? (
                 <div>
                   <div className="font-medium">{formatEuFromIso(session.secondRoundStart)}</div>
@@ -263,7 +268,7 @@ export default function VotingSessionDetail() {
             </div>
             
             <div className="field">
-              <label>Session ends at</label>
+              <label>{t('detail.endsAt', 'Session ends at')}</label>
               {!isEditing ? (
                 <div>
                   <div className="font-medium">{formatEuFromIso(session.endTime)}</div>
@@ -290,7 +295,7 @@ export default function VotingSessionDetail() {
 
             {/* Discussions */}
             <div className="field">
-              <label>Discussions ({session.discussions.length})</label>
+              <label>{t('detail.discussions', 'Discussions ({{count}})', { count: session.discussions.length })}</label>
               {!isEditing ? (
                 <div style={{
                   display: 'grid',
@@ -298,7 +303,7 @@ export default function VotingSessionDetail() {
                   gap: 'var(--space-md)',
                 }}>
                   {session.discussions.map((d) => (
-                    <Link 
+                    <LanguageLink 
                       key={d.id} 
                       to={`/discussions/${d.id}`} 
                       className="card" 
@@ -312,9 +317,9 @@ export default function VotingSessionDetail() {
                     >
                       <div className="font-semibold">{d.subject}</div>
                       <span className={`status-badge ${d.status.toLowerCase().replace('_', '-')}`}>
-                        {d.status.replace('_', ' ')}
+                        {t(`common:status.${d.status.toLowerCase().replace('_', '')}`, d.status.replace('_', ' '))}
                       </span>
-                    </Link>
+                    </LanguageLink>
                   ))}
                 </div>
               ) : (

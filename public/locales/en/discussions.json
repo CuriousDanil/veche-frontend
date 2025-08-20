@@ -1,0 +1,76 @@
+{
+  "title": "Discussions",
+  "create": {
+    "title": "Create discussion",
+    "subtitle": "Choose a party and define the subject and content.",
+    "button": "Create discussion",
+    "submitting": "Creating...",
+    "subject": {
+      "label": "Subject",
+      "placeholder": "Enter discussion subject"
+    },
+    "content": {
+      "label": "Content",
+      "placeholder": "Enter discussion content"
+    },
+    "selectParty": "Select party",
+    "noParties": "No parties found for your account.",
+    "actions": {
+      "label": "Add action (optional)",
+      "select": "Select an action...",
+      "renameParty": "Rename party",
+      "renameCompany": "Rename company",
+      "newNamePlaceholder": "Enter new name"
+    }
+  },
+  "detail": {
+    "edit": "Edit",
+    "save": "Save",
+    "saving": "Saving...",
+    "cancel": "Cancel",
+    "creator": "Creator: {{name}}",
+    "party": "Party: {{name}}",
+    "content": "Discussion content",
+    "updated": "Discussion updated successfully",
+    "saveFailed": "Failed to save: {{error}}",
+    "votes": {
+      "agree": "Agree",
+      "disagree": "Disagree",
+      "yourVote": "Your vote: {{vote}}",
+      "totalVotes": "{{count}} vote",
+      "totalVotes_plural": "{{count}} votes"
+    },
+    "comments": {
+      "title": "Comments",
+      "add": "Add comment",
+      "posting": "Posting...",
+      "minLength": "Comments must be at least {{count}} characters long",
+      "placeholder": "Write your comment...",
+      "totalComments": "{{count}} comment",
+      "totalComments_plural": "{{count}} comments"
+    },
+    "actions": {
+      "addAction": "Add action",
+      "statusControl": "Status Control",
+      "startVoting": "Start voting",
+      "startFinalVoting": "Start final voting",
+      "resolve": "Resolve",
+      "archive": "Archive"
+    }
+  },
+  "list": {
+    "title": "Discussions",
+    "newDiscussion": "New discussion", 
+    "noDiscussionsInParty": "No discussions yet in this party.",
+    "noDiscussionsTotal": "No discussions yet",
+    "loading": "Loading discussions...",
+    "gridView": "Grid view:",
+    "createdBy": "By {{name}}",
+    "createFirstDiscussion": "Create your first discussion"
+  },
+  "empty": {
+    "title": "No discussions yet",
+    "description": "Start a discussion to engage your party members",
+    "action": "Create first discussion"
+  }
+}

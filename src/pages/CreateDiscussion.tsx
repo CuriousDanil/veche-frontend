@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import { useLanguageNavigate } from '../hooks/useLanguage'
 import { apiFetch } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { SkeletonText } from '../components/Skeleton'
@@ -21,7 +23,8 @@ type CreateDiscussionPayload = {
 type Party = { id: string; name: string }
 
 export default function CreateDiscussion() {
-  const navigate = useNavigate()
+  const { t } = useTranslation('discussions')
+  const languageNavigate = useLanguageNavigate()
   const [searchParams] = useSearchParams()
   const { user } = useAuth()
 
@@ -101,7 +104,7 @@ export default function CreateDiscussion() {
         })
         if (!aRes.ok) throw new Error(await parseApiErrorResponse(aRes))
       }
-      navigate('/discussions')
+      languageNavigate('/discussions')
     } catch (err) {
       setStatus((err as Error).message)
     } finally {
@@ -112,24 +115,39 @@ export default function CreateDiscussion() {
   return (
     <div className="container container-narrow">
       <div className="mt-8 mb-6 text-center">
-        <h2>Create discussion</h2>
-        <p className="text-secondary mt-2">Choose a party and define the subject and content.</p>
+        <h2>{t('create.title', 'Create discussion')}</h2>
+        <p className="text-secondary mt-2">{t('create.subtitle', 'Choose a party and define the subject and content.')}</p>
       </div>
       <form className="form card" onSubmit={submit}>
         <div className="field">
-          <label htmlFor="subject">Subject</label>
-          <input id="subject" className="text-input" type="text" required value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
+          <label htmlFor="subject">{t('create.subject.label', 'Subject')}</label>
+          <input 
+            id="subject" 
+            className="text-input" 
+            type="text" 
+            required 
+            value={form.subject} 
+            onChange={(e) => setForm({ ...form, subject: e.target.value })}
+            placeholder={t('create.subject.placeholder', 'Enter discussion subject')}
+          />
         </div>
         <div className="field">
-          <label htmlFor="content">Content</label>
-          <textarea id="content" className="text-input" rows={5} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
+          <label htmlFor="content">{t('create.content.label', 'Content')}</label>
+          <textarea 
+            id="content" 
+            className="text-input" 
+            rows={5} 
+            value={form.content} 
+            onChange={(e) => setForm({ ...form, content: e.target.value })}
+            placeholder={t('create.content.placeholder', 'Enter discussion content')}
+          />
         </div>
         <div className="field">
-          <label>Select party</label>
+          <label>{t('create.selectParty', 'Select party')}</label>
           {loadingParties && <SkeletonText lines={2} />}
           {partiesError && <p className="text-secondary">{String(partiesError)}</p>}
           {!loadingParties && !partiesError && myParties.length === 0 && (
-            <p className="text-secondary">No parties found for your account.</p>
+            <p className="text-secondary">{t('create.noParties', 'No parties found for your account.')}</p>
           )}
           {!loadingParties && !partiesError && myParties.length > 0 && (
             <div className="radio-group">
@@ -158,17 +176,17 @@ export default function CreateDiscussion() {
         </div>
         {/* Add action menu */}
         <div className="field">
-          <label>Add action (optional)</label>
+          <label>{t('create.actions.label', 'Add action (optional)')}</label>
           <select className="select-input" value={actionType} onChange={(e) => setActionType(e.target.value as any)}>
-            <option value="NONE">Select an action…</option>
-            <option value="RENAME_PARTY">Rename party</option>
-            <option value="RENAME_COMPANY">Rename company</option>
+            <option value="NONE">{t('create.actions.select', 'Select an action…')}</option>
+            <option value="RENAME_PARTY">{t('create.actions.renameParty', 'Rename party')}</option>
+            <option value="RENAME_COMPANY">{t('create.actions.renameCompany', 'Rename company')}</option>
           </select>
           {(actionType === 'RENAME_PARTY' || actionType === 'RENAME_COMPANY') && (
             <div className="mt-3">
               <input
                 className="text-input"
-                placeholder="Enter new name"
+                placeholder={t('create.actions.newNamePlaceholder', 'Enter new name')}
                 value={actionName}
                 onChange={(e) => setActionName(e.target.value)}
               />
@@ -177,7 +195,7 @@ export default function CreateDiscussion() {
         </div>
         <div className="mt-2">
           <button className="primary-button" type="submit" disabled={isSubmitting || !form.partyId || !form.subject}>
-            {isSubmitting ? 'Creating…' : 'Create discussion'}
+            {isSubmitting ? t('create.submitting', 'Creating…') : t('create.button', 'Create discussion')}
           </button>
         </div>
         {status && <p className="mt-3 text-secondary">{status}</p>}
