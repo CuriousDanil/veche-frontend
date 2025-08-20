@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { apiFetch } from '../lib/api'
 import { postComment, patchComment } from '../lib/comments'
+import { patchDiscussion } from '../lib/discussions'
 import type { Comment } from '../types'
 import { useAuth } from '../context/AuthContext'
 import { getAccessPayload } from '../lib/auth'
@@ -37,6 +38,7 @@ export default function DiscussionDetail() {
   const [editBody, setEditBody] = useState('')
   const [statusMsg, setStatusMsg] = useState<string | null>(null)
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [comments, setComments] = useState<Comment[]>([])
   const [commentsError, setCommentsError] = useState<string | null>(null)
   const [commentsLoading, setCommentsLoading] = useState(false)
@@ -81,6 +83,27 @@ export default function DiscussionDetail() {
       setLoading(false)
     }
   }, [id])
+
+  const saveDiscussion = useCallback(async () => {
+    if (!id) return
+    setIsSaving(true)
+    try {
+      await patchDiscussion(id, {
+        subject: editTitle.trim(),
+        content: editBody.trim()
+      })
+      // Reload the discussion to get the updated data
+      await reload()
+      setIsEditing(false)
+      setStatusMsg('Discussion updated successfully')
+      setTimeout(() => setStatusMsg(null), 3000)
+    } catch (e) {
+      setStatusMsg(`Failed to save: ${(e as Error).message}`)
+      setTimeout(() => setStatusMsg(null), 5000)
+    } finally {
+      setIsSaving(false)
+    }
+  }, [id, editTitle, editBody, reload])
 
   useEffect(() => {
     reload()
@@ -160,7 +183,9 @@ export default function DiscussionDetail() {
                   <button className="secondary-button" onClick={() => setIsEditing(true)}>Edit</button>
                 ) : (
                   <>
-                    <button className="primary-button" onClick={async () => { /* TODO: save title/body via PATCH if supported */ setIsEditing(false); }}>Save</button>
+                    <button className="primary-button" onClick={saveDiscussion} disabled={isSaving}>
+                      {isSaving ? 'Saving...' : 'Save'}
+                    </button>
                     <button className="secondary-button" onClick={() => { setIsEditing(false); setEditTitle(item.subject); setEditBody(item.content); }}>Cancel</button>
                   </>
                 )}
@@ -179,7 +204,8 @@ export default function DiscussionDetail() {
                   className="text-input" 
                   rows={6} 
                   value={editBody} 
-                  onChange={(e) => setEditBody(e.target.value)} 
+                  onChange={(e) => setEditBody(e.target.value)}
+                  style={{ width: '100%', resize: 'vertical', boxSizing: 'border-box', wordBreak: 'break-word', overflowWrap: 'break-word' }}
                 />
               )}
             </div>

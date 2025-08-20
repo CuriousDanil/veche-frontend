@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { apiFetch } from '../lib/api'
 import { parseApiErrorResponse } from '../lib/errors'
 
@@ -13,6 +13,7 @@ type RegisterPayload = {
 }
 
 export default function Register() {
+  const navigate = useNavigate()
   const [form, setForm] = useState<RegisterPayload>({
     email: '',
     password: '',
@@ -71,8 +72,10 @@ export default function Register() {
       if (!response.ok) {
         throw new Error(await parseApiErrorResponse(response))
       }
-      setStatus('Registered successfully')
-      setForm({ email: '', password: '', name: '', companyName: '', partyName: '' })
+      setStatus('Registered successfully! Redirecting to login...')
+      setTimeout(() => {
+        navigate('/login', { state: { message: 'Registration successful! Please log in with your credentials.' } })
+      }, 1500)
     } catch (err) {
       setStatus((err as Error).message)
     } finally {

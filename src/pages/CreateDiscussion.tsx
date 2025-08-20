@@ -45,12 +45,29 @@ export default function CreateDiscussion() {
   useEffect(() => {
     // Set party from URL parameter first
     const partyIdFromUrl = searchParams.get('partyId')
-    if (partyIdFromUrl && myPartyIds.includes(partyIdFromUrl)) {
+    if (partyIdFromUrl && myPartyIds.includes(partyIdFromUrl) && !form.partyId) {
       setForm((f) => ({ ...f, partyId: partyIdFromUrl }))
     } else if (!form.partyId && myParties.length === 1) {
       setForm((f) => ({ ...f, partyId: myParties[0].id }))
     }
-  }, [parties?.length, searchParams, myPartyIds, myParties, form.partyId])
+    
+    // Set action from URL parameters
+    const actionTypeFromUrl = searchParams.get('actionType') as 'NONE' | 'RENAME_PARTY' | 'RENAME_COMPANY' | null
+    const actionNameFromUrl = searchParams.get('actionName')
+    const subjectFromUrl = searchParams.get('subject')
+    
+    if (actionTypeFromUrl && ['RENAME_PARTY', 'RENAME_COMPANY'].includes(actionTypeFromUrl)) {
+      setActionType(actionTypeFromUrl)
+      if (actionNameFromUrl) {
+        setActionName(actionNameFromUrl)
+      }
+    }
+    
+    // Set subject from URL parameter if provided
+    if (subjectFromUrl && !form.subject) {
+      setForm((f) => ({ ...f, subject: subjectFromUrl }))
+    }
+  }, [parties?.length, searchParams, myPartyIds.join(','), myParties.length])
 
 
 

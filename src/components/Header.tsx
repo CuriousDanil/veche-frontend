@@ -1,19 +1,30 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export default function Header() {
   const { user, logout } = useAuth()
+  const navigate = useNavigate()
+
+  const handleLogout = () => {
+    logout()
+    navigate('/')
+  }
+
   return (
     <header className="site-header">
       <div className="container header-inner">
-        <Link to="/" className="brand">Veche</Link>
+        {user ? (
+          <span className="brand">Veche</span>
+        ) : (
+          <Link to="/" className="brand">Veche</Link>
+        )}
         <nav className="nav">
           {user ? (
             <>
               <Link to="/company" className="link">{(useAuth().company?.name) ?? 'Company'}</Link>
               <Link to="/discussions" className="link">Discussions</Link>
               <Link to="/voting-sessions" className="link">Sessions</Link>
-              <button className="primary-button" onClick={logout}>Log out</button>
+              <button className="primary-button" onClick={handleLogout}>Log out</button>
             </>
           ) : (
             <>

@@ -63,6 +63,13 @@ export async function apiFetch(input: RequestInfo | URL, init: ApiRequestInit = 
         ;(retryHeaders as Record<string, string>)['Authorization'] = `Bearer ${newAccessToken}`
       }
       return fetch(input, { ...rest, headers: retryHeaders, credentials: isAuthEndpoint ? 'include' : rest.credentials })
+    } else {
+      // If refresh failed, clear tokens and redirect to welcome page
+      clearAccessToken()
+      // Use setTimeout to avoid blocking the current execution context
+      setTimeout(() => {
+        window.location.href = '/'
+      }, 100)
     }
   }
 

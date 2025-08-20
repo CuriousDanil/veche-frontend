@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { apiFetch } from '../lib/api'
 import { parseApiErrorResponse } from '../lib/errors'
@@ -17,6 +17,16 @@ export default function Login() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const auth = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // Show registration success message if redirected from register
+  useEffect(() => {
+    if (location.state?.message) {
+      setStatus(location.state.message)
+      // Clear the state to prevent message from persisting on refresh
+      window.history.replaceState({}, document.title)
+    }
+  }, [location])
   const minLen = 8
   const len = form.password.length
   const remaining = Math.max(0, minLen - len)
@@ -68,7 +78,7 @@ export default function Login() {
       const data = (await response.json()) as { accessToken: string }
       if (data?.accessToken) {
         auth.login(data.accessToken)
-        navigate('/')
+        navigate('/company')
         return
       }
       setStatus('Unexpected response')

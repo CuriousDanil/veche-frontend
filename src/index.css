@@ -111,6 +111,10 @@ a {
   transform: translateY(-1px);
 }
 
+a.card {
+  display: block;
+}
+
 /* Typography */
 h1, h2, h3, h4, h5, h6 {
   margin: 0;
@@ -552,12 +556,19 @@ h6 {
   flex-direction: column;
   gap: var(--space-md);
   height: fit-content;
+  cursor: pointer;
 }
 
 .content-card:hover {
   border-color: var(--accent-blue);
   box-shadow: var(--shadow-lg);
   transform: translateY(-2px);
+  text-decoration: none;
+}
+
+a.content-card {
+  display: flex;
+  text-decoration: none;
 }
 
 .content-card-title {
@@ -579,6 +590,10 @@ h6 {
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
+  word-wrap: break-word;
+  word-break: break-word;
+  white-space: pre-wrap;
+  max-width: 100%;
 }
 
 .content-card-footer {

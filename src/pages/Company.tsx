@@ -1,12 +1,18 @@
-import { useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import useSWR from 'swr'
 import { swrJsonFetcher } from '../lib/swr'
 import type { Company } from '../types'
 import { Skeleton, SkeletonText } from '../components/Skeleton'
+import Modal from '../components/Modal'
 
 export default function CompanyPage() {
+  const navigate = useNavigate()
   const { data: company, error, isLoading } = useSWR<Company>('/api/company/my-company', swrJsonFetcher, { refreshInterval: 15000 })
+  
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [editingParty, setEditingParty] = useState<{ id: string; name: string } | null>(null)
+  const [newPartyName, setNewPartyName] = useState('')
 
   const usersByParty = useMemo(() => {
     const map: Record<string, { name: string; users: string[] }> = {}
@@ -20,6 +26,31 @@ export default function CompanyPage() {
     }
     return map
   }, [company])
+
+  const handleEditParty = (partyId: string, partyName: string) => {
+    setEditingParty({ id: partyId, name: partyName })
+    setNewPartyName(partyName)
+    setIsEditModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setIsEditModalOpen(false)
+    setEditingParty(null)
+    setNewPartyName('')
+  }
+
+  const handleConfirmEdit = () => {
+    if (!editingParty || !newPartyName.trim()) return
+    
+    // Navigate to CreateDiscussion with pre-filled action
+    const params = new URLSearchParams({
+      partyId: editingParty.id,
+      actionType: 'RENAME_PARTY',
+      actionName: newPartyName.trim(),
+      subject: `Rename party to "${newPartyName.trim()}"`
+    })
+    navigate(`/discussions/new?${params.toString()}`)
+  }
 
   return (
     <div className="container">
@@ -52,8 +83,14 @@ export default function CompanyPage() {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-md)' }}>
                       <h3 className="font-semibold">{group.name}</h3>
                       <div className="button-group">
-                        <button className="secondary-button" type="button">Add user</button>
-                        <button className="secondary-button" type="button">Edit party</button>
+                        <button className="secondary-button" type="button" title="Feature coming soon">Add user</button>
+                        <button 
+                          className="secondary-button" 
+                          type="button" 
+                          onClick={() => handleEditParty(pid, group.name)}
+                        >
+                          Edit party
+                        </button>
                       </div>
                     </div>
                     <div className="text-tertiary mb-3" style={{ fontSize: 'var(--text-sm)' }}>
@@ -78,6 +115,47 @@ export default function CompanyPage() {
           </div>
         </div>
       )}
+      
+      <Modal 
+        isOpen={isEditModalOpen} 
+        onClose={handleCloseModal} 
+        title="Rename Party"
+      >
+        <div className="form">
+          <div className="field">
+            <label htmlFor="newPartyName">New party name</label>
+            <input
+              id="newPartyName"
+              className="text-input"
+              type="text"
+              value={newPartyName}
+              onChange={(e) => setNewPartyName(e.target.value)}
+              placeholder="Enter new party name"
+              autoFocus
+            />
+            {editingParty && (
+              <div className="text-tertiary mt-2" style={{ fontSize: 'var(--text-xs)' }}>
+                Current name: {editingParty.name}
+              </div>
+            )}
+          </div>
+          <div className="button-group mt-4">
+            <button 
+              className="primary-button" 
+              onClick={handleConfirmEdit}
+              disabled={!newPartyName.trim() || newPartyName.trim() === editingParty?.name}
+            >
+              Create Discussion
+            </button>
+            <button 
+              className="secondary-button" 
+              onClick={handleCloseModal}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

@@ -4,9 +4,9 @@ import useSWR from 'swr'
 import { swrJsonFetcher } from '../lib/swr'
 import { apiFetch } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
+import { updateVotingSession } from '../lib/votingSessions'
 import { formatEuFromIso, formatEuFromInput, timeLeftDhM } from '../lib/datetime'
 import { Skeleton, SkeletonText } from '../components/Skeleton'
-import DateTimePicker from '../components/DateTimePicker'
 
 type Party = { id: string; name: string }
 type Discussion = { id: string; subject: string; status: string; party: Party }
@@ -33,7 +33,15 @@ function toInputValue(iso?: string | null): string {
 function toInstantOrNull(value: string): string | null {
   if (!value) return null
   // Browser provides local-like string `YYYY-MM-DDTHH:mm`; send as ISO with seconds and Z
-  return `${value}:00Z`
+  let asIso = value.replace(' ', 'T')
+  if (!asIso.endsWith('Z')) {
+    // Add seconds if not present
+    if (asIso.match(/T\d{2}:\d{2}$/)) {
+      asIso += ':00'
+    }
+    asIso += 'Z'
+  }
+  return asIso
 }
 
 export default function VotingSessionDetail() {
@@ -110,19 +118,14 @@ export default function VotingSessionDetail() {
     }
     try {
       setStatusMsg(null)
-      const payload = {
+      await updateVotingSession(id!, {
         name,
         partyId,
         discussionIds: selectedDiscussionIds,
         firstRoundStart: toInstantOrNull(firstRound),
         secondRoundStart: toInstantOrNull(secondRound),
         endTime: toInstantOrNull(endsAt),
-      }
-      const res = await apiFetch(`/api/voting-sessions/${id}` , {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
       })
-      if (!res.ok) throw new Error(`Failed to save: ${res.status}`)
       // refetch fresh session
       const fresh = await apiFetch(`/api/voting-sessions/${id}`)
       if (!fresh.ok) throw new Error(`Failed to reload: ${fresh.status}`)
@@ -220,9 +223,11 @@ export default function VotingSessionDetail() {
                 </div>
               ) : (
                 <div>
-                  <DateTimePicker
-                    value={firstRound}
-                    onChange={setFirstRound}
+                  <input 
+                    className="text-input" 
+                    type="datetime-local" 
+                    value={firstRound} 
+                    onChange={(e) => setFirstRound(e.target.value)} 
                   />
                   <div className="text-tertiary mt-2" style={{ fontSize: 'var(--text-xs)' }}>
                     Preview: {formatEuFromInput(firstRound)}
@@ -244,9 +249,11 @@ export default function VotingSessionDetail() {
                 </div>
               ) : (
                 <div>
-                  <DateTimePicker
-                    value={secondRound}
-                    onChange={setSecondRound}
+                  <input 
+                    className="text-input" 
+                    type="datetime-local" 
+                    value={secondRound} 
+                    onChange={(e) => setSecondRound(e.target.value)} 
                   />
                   <div className="text-tertiary mt-2" style={{ fontSize: 'var(--text-xs)' }}>
                     Preview: {formatEuFromInput(secondRound)}
@@ -268,9 +275,11 @@ export default function VotingSessionDetail() {
                 </div>
               ) : (
                 <div>
-                  <DateTimePicker
-                    value={endsAt}
-                    onChange={setEndsAt}
+                  <input 
+                    className="text-input" 
+                    type="datetime-local" 
+                    value={endsAt} 
+                    onChange={(e) => setEndsAt(e.target.value)} 
                   />
                   <div className="text-tertiary mt-2" style={{ fontSize: 'var(--text-xs)' }}>
                     Preview: {formatEuFromInput(endsAt)}

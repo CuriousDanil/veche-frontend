@@ -1,12 +1,11 @@
 import { useMemo, useState, useEffect } from 'react'
 import type { FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { apiFetch } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
+import { createVotingSession } from '../lib/votingSessions'
 import useSWR from 'swr'
 import { swrJsonFetcher } from '../lib/swr'
 import { Skeleton, SkeletonText } from '../components/Skeleton'
-import DateTimePicker from '../components/DateTimePicker'
 
 type Party = { id: string; name: string }
 type Discussion = { id: string; subject: string; status: 'WAITING' | 'VOTING' | 'FINAL_VOTING' | 'RESOLVED' | 'ARCHIVED'; party: Party }
@@ -31,13 +30,13 @@ export default function CreateVotingSession() {
   useEffect(() => {
     // Set party from URL parameter first
     const partyIdFromUrl = searchParams.get('partyId')
-    if (partyIdFromUrl && myPartyIds.includes(partyIdFromUrl)) {
+    if (partyIdFromUrl && myPartyIds.includes(partyIdFromUrl) && !partyId) {
       setPartyId(partyIdFromUrl)
     } else if (!partyId && parties && myPartyIds.length > 0) {
       const firstMyParty = parties.find((pp) => myPartyIds.includes(pp.id))
       if (firstMyParty) setPartyId(firstMyParty.id)
     }
-  }, [parties?.length, myPartyIds.join(','), searchParams, partyId])
+  }, [parties?.length, myPartyIds.join(','), searchParams])
 
   const myParties = useMemo(() => (parties || []).filter((p) => myPartyIds.includes(p.id)), [parties, myPartyIds.join(',')])
   const waitingDiscussions = useMemo(
@@ -52,7 +51,14 @@ export default function CreateVotingSession() {
   function toInstantOrNull(value: string): string | null {
     if (!value) return null
     // value like 2025-08-14T12:30 -> convert to Z
-    const asIso = value.endsWith('Z') ? value : `${value}:00Z`.replace(' ', 'T')
+    let asIso = value.replace(' ', 'T')
+    if (!asIso.endsWith('Z')) {
+      // Add seconds if not present
+      if (asIso.match(/T\d{2}:\d{2}$/)) {
+        asIso += ':00'
+      }
+      asIso += 'Z'
+    }
     return asIso
   }
 
@@ -66,19 +72,14 @@ export default function CreateVotingSession() {
     setIsSubmitting(true)
     setStatus(null)
     try {
-      const payload = {
+      await createVotingSession({
         name,
         partyId,
         discussionIds,
         firstRoundStartsAt: toInstantOrNull(firstRoundStartsAt),
         secondRoundStartsAt: toInstantOrNull(secondRoundStartsAt),
         endsAt: toInstantOrNull(endsAt),
-      }
-      const res = await apiFetch('/api/voting-sessions', {
-        method: 'POST',
-        body: JSON.stringify(payload),
       })
-      if (!res.ok) throw new Error(`Failed: ${res.status}`)
       navigate('/voting-sessions')
     } catch (err) {
       setStatus((err as Error).message)
@@ -155,27 +156,36 @@ export default function CreateVotingSession() {
           )}
         </div>
         <div className="field">
-          <DateTimePicker
-            label="First round starts at"
-            value={firstRoundStartsAt}
-            onChange={setFirstRoundStartsAt}
+          <label htmlFor="firstRoundStartsAt">First round starts at</label>
+          <input 
+            id="firstRoundStartsAt"
+            className="text-input" 
+            type="datetime-local" 
+            value={firstRoundStartsAt} 
+            onChange={(e) => setFirstRoundStartsAt(e.target.value)} 
           />
           <div className="text-tertiary mt-2" style={{ fontSize: 'var(--text-xs)' }}>
             All times are in UTC. Participants will see times in their local timezone.
           </div>
         </div>
         <div className="field">
-          <DateTimePicker
-            label="Second round starts at"
-            value={secondRoundStartsAt}
-            onChange={setSecondRoundStartsAt}
+          <label htmlFor="secondRoundStartsAt">Second round starts at</label>
+          <input 
+            id="secondRoundStartsAt"
+            className="text-input" 
+            type="datetime-local" 
+            value={secondRoundStartsAt} 
+            onChange={(e) => setSecondRoundStartsAt(e.target.value)} 
           />
         </div>
         <div className="field">
-          <DateTimePicker
-            label="Session ends at"
-            value={endsAt}
-            onChange={setEndsAt}
+          <label htmlFor="endsAt">Session ends at</label>
+          <input 
+            id="endsAt"
+            className="text-input" 
+            type="datetime-local" 
+            value={endsAt} 
+            onChange={(e) => setEndsAt(e.target.value)} 
           />
         </div>
         <div className="button-group mt-6">
