@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { apiFetch } from '../lib/api'
 import { postComment, patchComment } from '../lib/comments'
-import { patchDiscussion } from '../lib/discussions'
+import { patchDiscussion, fetchDiscussionSummary, type SummaryResponse } from '../lib/discussions'
 import type { Comment } from '../types'
 import { useAuth } from '../context/AuthContext'
 import { getAccessPayload } from '../lib/auth'
@@ -75,7 +75,7 @@ export default function DiscussionDetail() {
           d = data.find((x) => x.id === id) ?? null
         }
       }
-      if (!d) throw new Error('Discussion not found')
+      if (!d) throw new Error(t('detail.creator.discussionNotFound', 'Discussion not found'))
       setItem(d)
       setEditTitle(d.subject)
       setEditBody(d.content)
@@ -97,7 +97,7 @@ export default function DiscussionDetail() {
       // Reload the discussion to get the updated data
       await reload()
       setIsEditing(false)
-      setStatusMsg('Discussion updated successfully')
+      setStatusMsg(t('detail.updated', 'Discussion updated successfully'))
       setTimeout(() => setStatusMsg(null), 3000)
     } catch (e) {
       setStatusMsg(`Failed to save: ${(e as Error).message}`)
@@ -141,6 +141,13 @@ export default function DiscussionDetail() {
     if (commentsData) setComments(commentsData)
   }, [commentsData, commentsErr, commentsLoad])
 
+  // Fetch summary for FINAL_VOTING status
+  const { data: summaryData, error: summaryErr, isLoading: summaryLoading } = useSWR<SummaryResponse>(
+    id && item?.status === 'FINAL_VOTING' ? `/api/discussions/${id}/summary` : null,
+    () => fetchDiscussionSummary(id!),
+    { refreshInterval: 0 } // Don't auto-refresh summary
+  )
+
   return (
     <div className="container container-narrow">
       {loading && (
@@ -161,11 +168,11 @@ export default function DiscussionDetail() {
                   <h2 className="mb-2">{item.subject}</h2>
                   <div className="mb-3">
                     <span className={`status-badge ${item.status.toLowerCase().replace('_', '-')}`}>
-                      {item.status.replace('_', ' ')}
+                      {t(`common:status.${item.status.toLowerCase().replace('_', '')}`, item.status.replace('_', ' '))}
                     </span>
                   </div>
                   <div className="text-secondary">
-                    by {item.creatorName} • {item.party.name}
+                    {t('detail.creator.by', 'by')} {item.creatorName} • {item.party.name}
                   </div>
                 </div>
               ) : (
@@ -241,7 +248,7 @@ export default function DiscussionDetail() {
                     onClick={async () => {
                       if (!id) return
                       if ((actionType === 'RENAME_PARTY' || actionType === 'RENAME_COMPANY') && !actionName.trim()) { 
-                        setStatusMsg('Enter new name'); 
+                        setStatusMsg(t('detail.actions.enterNewName', 'Enter new name')); 
                         return 
                       }
                       try {
@@ -259,7 +266,7 @@ export default function DiscussionDetail() {
                             payload = { type: 'DELETE_PARTY', partyId: item.party.id }
                             break
                           default:
-                            setStatusMsg('Unknown action type')
+                            setStatusMsg(t('detail.actions.unknownActionType', 'Unknown action type'))
                             return
                         }
                         const res = await apiFetch(`/api/discussions/${id}/action`, {
@@ -270,14 +277,14 @@ export default function DiscussionDetail() {
                           setStatusMsg(await parseApiErrorResponse(res))
                           return
                         }
-                        setStatusMsg('Action added')
+                        setStatusMsg(t('detail.actions.actionAdded', 'Action added'))
                         setActionType('NONE')
                         setActionName('')
                       } catch (e) {
                         setStatusMsg(parseUnknownError(e))
                       }
                     }}
-                  >Add action</button>
+                  >{t('detail.actions.addAction', 'Add action')}</button>
                 )}
               </div>
             </div>
@@ -286,7 +293,7 @@ export default function DiscussionDetail() {
           {/* Existing actions */}
           {item.actions && item.actions.length > 0 && (
             <div style={{ marginTop: 16 }}>
-              <h3>Actions</h3>
+              <h3>{t('detail.actions.title', 'Actions')}</h3>
               <div style={{ display: 'grid', gap: 8 }}>
                 {item.actions.map((a) => {
                   let friendly = a.actionType
@@ -294,16 +301,16 @@ export default function DiscussionDetail() {
                     const p = JSON.parse(a.payload || '{}') as any
                     switch (a.actionType) {
                       case 'RENAME_PARTY':
-                        friendly = `Rename party to "${p?.newName ?? ''}"`
+                        friendly = t('detail.actions.renamePartyTo', `Rename party to "${p?.newName ?? ''}"`, { name: p?.newName ?? '' })
                         break
                       case 'RENAME_COMPANY':
-                        friendly = `Rename company to "${p?.newName ?? ''}"`
+                        friendly = t('detail.actions.renameCompanyTo', `Rename company to "${p?.newName ?? ''}"`, { name: p?.newName ?? '' })
                         break
                       case 'EVICT_USER_FROM_PARTY':
-                        friendly = `Evict user ${p?.userId ?? ''} from party ${p?.partyId ?? ''}`
+                        friendly = t('detail.actions.evictUserFromParty', `Evict user ${p?.userId ?? ''} from party ${p?.partyId ?? ''}`, { userId: p?.userId ?? '', partyId: p?.partyId ?? '' })
                         break
                       case 'ADD_USER_TO_PARTY':
-                        friendly = `Add user ${p?.userId ?? ''} to party ${p?.partyId ?? ''}`
+                        friendly = t('detail.actions.addUserToParty', `Add user ${p?.userId ?? ''} to party ${p?.partyId ?? ''}`, { userId: p?.userId ?? '', partyId: p?.partyId ?? '' })
                         break
                       default:
                         friendly = `${a.actionType}`
@@ -325,13 +332,13 @@ export default function DiscussionDetail() {
           {isAuthor && (
             <div className="card mt-6">
               <div className="field">
-                <label>Change status</label>
+                <label>{t('detail.status.changeStatus', 'Change status')}</label>
                 <div className="button-group stacked">
-                  <button className="secondary-button" disabled={isUpdatingStatus} onClick={async () => { try { setIsUpdatingStatus(true); await apiFetch(`/api/discussions/${id}/wait`, { method: 'POST' }); await reload(); setStatusMsg('Status changed to WAITING'); } finally { setIsUpdatingStatus(false) } }}>Set WAITING</button>
-                  <button className="secondary-button" disabled={isUpdatingStatus} onClick={async () => { try { setIsUpdatingStatus(true); await apiFetch(`/api/discussions/${id}/voting`, { method: 'POST' }); await reload(); setStatusMsg('Status changed to VOTING'); } finally { setIsUpdatingStatus(false) } }}>Set VOTING</button>
-                  <button className="secondary-button" disabled={isUpdatingStatus} onClick={async () => { try { setIsUpdatingStatus(true); await apiFetch(`/api/discussions/${id}/final-voting`, { method: 'POST' }); await reload(); setStatusMsg('Status changed to FINAL_VOTING'); } finally { setIsUpdatingStatus(false) } }}>Set FINAL VOTING</button>
-                  <button className="secondary-button" disabled={isUpdatingStatus} onClick={async () => { try { setIsUpdatingStatus(true); await apiFetch(`/api/discussions/${id}/resolve`, { method: 'POST' }); await reload(); setStatusMsg('Status changed to RESOLVED'); } finally { setIsUpdatingStatus(false) } }}>Set RESOLVED</button>
-                  <button className="secondary-button" disabled={isUpdatingStatus} onClick={async () => { try { setIsUpdatingStatus(true); await apiFetch(`/api/discussions/${id}/archive`, { method: 'POST' }); await reload(); setStatusMsg('Status changed to ARCHIVED'); } finally { setIsUpdatingStatus(false) } }}>Set ARCHIVED</button>
+                  <button className="secondary-button" disabled={isUpdatingStatus} onClick={async () => { try { setIsUpdatingStatus(true); await apiFetch(`/api/discussions/${id}/wait`, { method: 'POST' }); await reload(); setStatusMsg(t('detail.status.statusChangedTo', 'Status changed to {{status}}', { status: t('detail.status.waiting', 'WAITING') })); } finally { setIsUpdatingStatus(false) } }}>{t('detail.status.setWaiting', 'Set WAITING')}</button>
+                  <button className="secondary-button" disabled={isUpdatingStatus} onClick={async () => { try { setIsUpdatingStatus(true); await apiFetch(`/api/discussions/${id}/voting`, { method: 'POST' }); await reload(); setStatusMsg(t('detail.status.statusChangedTo', 'Status changed to {{status}}', { status: t('detail.status.voting', 'VOTING') })); } finally { setIsUpdatingStatus(false) } }}>{t('detail.status.setVoting', 'Set VOTING')}</button>
+                  <button className="secondary-button" disabled={isUpdatingStatus} onClick={async () => { try { setIsUpdatingStatus(true); await apiFetch(`/api/discussions/${id}/final-voting`, { method: 'POST' }); await reload(); setStatusMsg(t('detail.status.statusChangedTo', 'Status changed to {{status}}', { status: t('detail.status.finalVoting', 'FINAL VOTING') })); } finally { setIsUpdatingStatus(false) } }}>{t('detail.status.setFinalVoting', 'Set FINAL VOTING')}</button>
+                  <button className="secondary-button" disabled={isUpdatingStatus} onClick={async () => { try { setIsUpdatingStatus(true); await apiFetch(`/api/discussions/${id}/resolve`, { method: 'POST' }); await reload(); setStatusMsg(t('detail.status.statusChangedTo', 'Status changed to {{status}}', { status: t('detail.status.resolved', 'RESOLVED') })); } finally { setIsUpdatingStatus(false) } }}>{t('detail.status.setResolved', 'Set RESOLVED')}</button>
+                  <button className="secondary-button" disabled={isUpdatingStatus} onClick={async () => { try { setIsUpdatingStatus(true); await apiFetch(`/api/discussions/${id}/archive`, { method: 'POST' }); await reload(); setStatusMsg(t('detail.status.statusChangedTo', 'Status changed to {{status}}', { status: t('detail.status.archived', 'ARCHIVED') })); } finally { setIsUpdatingStatus(false) } }}>{t('detail.status.setArchived', 'Set ARCHIVED')}</button>
                 </div>
               </div>
             </div>
@@ -341,9 +348,9 @@ export default function DiscussionDetail() {
           {(item.status === 'WAITING' || item.status === 'RESOLVED') && (
             <div style={{ marginTop: 16 }}>
               <label htmlFor="comment" style={{ display: 'block', marginBottom: 8 }}>Comment (optional)</label>
-              <textarea id="comment" className="text-input" rows={4} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Leave your comment" />
+              <textarea id="comment" className="text-input" rows={4} value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t('detail.comments.leaveComment', 'Leave your comment')} />
               <div style={{ marginTop: 12 }}>
-                <button className="primary-button" onClick={async () => { if (!id) return; try { setStatusMsg(null); await postComment(id, comment); setComment(''); await mutateComments() } catch (e) { setStatusMsg((e as Error).message) } }}>Send</button>
+                <button className="primary-button" onClick={async () => { if (!id) return; try { setStatusMsg(null); await postComment(id, comment); setComment(''); await mutateComments() } catch (e) { setStatusMsg((e as Error).message) } }}>{t('detail.comments.send', 'Send')}</button>
               </div>
             </div>
           )}
@@ -357,37 +364,37 @@ export default function DiscussionDetail() {
             return (
               <>
                 <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-                  <button disabled={isCastingVote} className={agreed ? 'btn btn-green' : 'btn btn-outline-green'} onClick={() => { void castVote('AGREE') }}>Agree</button>
+                  <button disabled={isCastingVote} className={agreed ? 'btn btn-green' : 'btn btn-outline-green'} onClick={() => { void castVote('AGREE') }}>{t('detail.voting.agree', 'Agree')}</button>
                   <button disabled={isCastingVote} className={disagreed ? 'btn btn-red' : 'btn btn-outline-red'} onClick={() => setShowDisagree((v) => !v)}>
-                    {showDisagree ? 'Cancel' : 'Disagree'}
+                    {showDisagree ? t('detail.voting.cancel', 'Cancel') : t('detail.voting.disagree', 'Disagree')}
                   </button>
                 </div>
                 {showDisagree ? (
                   <div style={{ marginTop: 16 }}>
-                    <label htmlFor="comment" style={{ display: 'block', marginBottom: 8 }}>Your argument</label>
-                    <textarea id="comment" className="text-input" rows={4} value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Please explain your disagreement" />
+                    <label htmlFor="comment" style={{ display: 'block', marginBottom: 8 }}>{t('detail.voting.yourArgument', 'Your argument')}</label>
+                    <textarea id="comment" className="text-input" rows={4} value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t('detail.voting.explainDisagreement', 'Please explain your disagreement')} />
                     <div style={{ marginTop: 8 }}>
-                      {isCommentValid ? 'Looks good.' : `${minCommentLen - trimmedLen} more characters needed.`}
+                      {isCommentValid ? t('detail.voting.argumentValid', 'Looks good.') : t('detail.voting.argumentRequired', '{{count}} more characters needed.', { count: minCommentLen - trimmedLen })}
                     </div>
                     <div style={{ marginTop: 12 }}>
-                      <button className="primary-button" disabled={!isCommentValid || isCastingVote} onClick={async () => { if (!id) return; try { setStatusMsg(null); await castVote('DISAGREE'); await postComment(id, comment); setComment(''); await mutateComments(); setShowDisagree(false) } catch (e) { setStatusMsg(parseUnknownError(e)) } }}>Send</button>
+                      <button className="primary-button" disabled={!isCommentValid || isCastingVote} onClick={async () => { if (!id) return; try { setStatusMsg(null); await castVote('DISAGREE'); await postComment(id, comment); setComment(''); await mutateComments(); setShowDisagree(false) } catch (e) { setStatusMsg(parseUnknownError(e)) } }}>{t('detail.comments.send', 'Send')}</button>
                     </div>
                   </div>
                 ) : (
                   myArgument ? (
                     <div style={{ marginTop: 16 }}>
-                      <h3 style={{ margin: '8px 0' }}>Your argument</h3>
+                      <h3 style={{ margin: '8px 0' }}>{t('detail.comments.yourArgument', 'Your argument')}</h3>
                       <div className="card" style={{ padding: 12 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <div style={{ color: 'var(--text-secondary)' }}>{(myArgument as any).creator?.name}</div>
-                          <button className="link" onClick={() => { setEditingCommentId(myArgument.id); setEditingContent(myArgument.content) }}>Edit</button>
+                          <button className="link" onClick={() => { setEditingCommentId(myArgument.id); setEditingContent(myArgument.content) }}>{t('detail.comments.edit', 'Edit')}</button>
                         </div>
                         {editingCommentId === myArgument.id ? (
                           <div style={{ marginTop: 8 }}>
                             <textarea className="text-input" rows={3} value={editingContent} onChange={(e) => setEditingContent(e.target.value)} />
                             <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-                              <button className="primary-button" onClick={async () => { try { setEditError(null); await patchComment(myArgument.id, editingContent); setEditingCommentId(null); setEditingContent(''); await mutateComments() } catch (e) { setEditError((e as Error).message) } }}>Save</button>
-                              <button className="primary-button" onClick={() => { setEditingCommentId(null); setEditingContent(''); setEditError(null) }}>Cancel</button>
+                              <button className="primary-button" onClick={async () => { try { setEditError(null); await patchComment(myArgument.id, editingContent); setEditingCommentId(null); setEditingContent(''); await mutateComments() } catch (e) { setEditError((e as Error).message) } }}>{t('detail.comments.save', 'Save')}</button>
+                              <button className="primary-button" onClick={() => { setEditingCommentId(null); setEditingContent(''); setEditError(null) }}>{t('detail.comments.cancel', 'Cancel')}</button>
                             </div>
                             {editError && <div style={{ marginTop: 6, color: '#b91c1c', fontSize: 12 }}>{editError}</div>}
                           </div>
@@ -410,12 +417,15 @@ export default function DiscussionDetail() {
             return (
             <div style={{ marginTop: 16 }}>
               <div className="card" style={{ padding: 12, marginBottom: 12 }}>
-                {/* TODO: Fetch and display final voting summary text */}
-                <strong>Final voting summary:</strong> Example: This proposal consolidates prior agreements and requests final approval.
+                <strong>{t('detail.summary.finalVotingSummary', 'Final voting summary:')}</strong>
+                {summaryLoading && <div style={{ marginTop: 8, color: 'var(--text-secondary)' }}>{t('detail.summary.loading', 'Loading summary...')}</div>}
+                {summaryErr && <div style={{ marginTop: 8, color: 'var(--text-secondary)' }}>{t('detail.summary.failed', 'Failed to load summary')}</div>}
+                {summaryData && <div style={{ marginTop: 8, whiteSpace: 'pre-wrap' }}>{summaryData.content}</div>}
+                {!summaryLoading && !summaryErr && !summaryData && <div style={{ marginTop: 8, color: 'var(--text-secondary)' }}>{t('detail.summary.noSummary', 'No summary available')}</div>}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button disabled={isCastingVote} className={agreed ? 'btn btn-green' : 'btn btn-outline-green'} onClick={() => { void castVote('AGREE') }}>Agree</button>
-                <button disabled={isCastingVote} className={disagreed ? 'btn btn-red' : 'btn btn-outline-red'} onClick={() => { void castVote('DISAGREE') }}>Disagree</button>
+                <button disabled={isCastingVote} className={agreed ? 'btn btn-green' : 'btn btn-outline-green'} onClick={() => { void castVote('AGREE') }}>{t('detail.voting.agree', 'Agree')}</button>
+                <button disabled={isCastingVote} className={disagreed ? 'btn btn-red' : 'btn btn-outline-red'} onClick={() => { void castVote('DISAGREE') }}>{t('detail.voting.disagree', 'Disagree')}</button>
               </div>
             </div>
             )
@@ -424,26 +434,26 @@ export default function DiscussionDetail() {
           {/* Comments list for WAITING, RESOLVED, ARCHIVED (not VOTING) */}
           {['WAITING','RESOLVED','ARCHIVED'].includes(item.status) && (
             <div style={{ marginTop: 24 }}>
-              <h3>Comments</h3>
-              {commentsLoading && <p style={{ color: 'var(--text-secondary)' }}>Loading comments…</p>}
+              <h3>{t('detail.comments.title', 'Comments')}</h3>
+              {commentsLoading && <p style={{ color: 'var(--text-secondary)' }}>{t('detail.comments.loading', 'Loading comments…')}</p>}
               {commentsError && <p style={{ color: 'var(--text-secondary)' }}>{commentsError}</p>}
               {!commentsLoading && !commentsError && (
                 <div style={{ display: 'grid', gap: 8 }}>
-                  {comments.length === 0 && <div style={{ color: 'var(--text-secondary)' }}>No comments yet</div>}
+                  {comments.length === 0 && <div style={{ color: 'var(--text-secondary)' }}>{t('detail.comments.noComments', 'No comments yet')}</div>}
                   {comments.map((c) => (
                     <div key={c.id} className="card" style={{ padding: 12 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div style={{ fontWeight: 600 }}>{c.creator.name} <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>({c.creator.email})</span></div>
                         {['WAITING','VOTING','RESOLVED'].includes(item.status) && (
-                          <button className="link" onClick={() => { setEditingCommentId(c.id); setEditingContent(c.content) }}>Edit</button>
+                          <button className="link" onClick={() => { setEditingCommentId(c.id); setEditingContent(c.content) }}>{t('detail.comments.edit', 'Edit')}</button>
                         )}
                       </div>
                       {editingCommentId === c.id ? (
                         <div style={{ marginTop: 8 }}>
                           <textarea className="text-input" rows={3} value={editingContent} onChange={(e) => setEditingContent(e.target.value)} />
                           <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-                            <button className="primary-button" onClick={async () => { try { setEditError(null); await patchComment(c.id, editingContent); setEditingCommentId(null); setEditingContent(''); await mutateComments() } catch (e) { setEditError((e as Error).message) } }}>Save</button>
-                            <button className="primary-button" onClick={() => { setEditingCommentId(null); setEditingContent(''); setEditError(null) }}>Cancel</button>
+                            <button className="primary-button" onClick={async () => { try { setEditError(null); await patchComment(c.id, editingContent); setEditingCommentId(null); setEditingContent(''); await mutateComments() } catch (e) { setEditError((e as Error).message) } }}>{t('detail.comments.save', 'Save')}</button>
+                            <button className="primary-button" onClick={() => { setEditingCommentId(null); setEditingContent(''); setEditError(null) }}>{t('detail.comments.cancel', 'Cancel')}</button>
                           </div>
                           {editError && <div style={{ marginTop: 6, color: '#b91c1c', fontSize: 12 }}>{editError}</div>}
                         </div>
@@ -459,15 +469,15 @@ export default function DiscussionDetail() {
 
           {item.status === 'ARCHIVED' && (
             <div style={{ marginTop: 16 }}>
-              <h3>Votes</h3>
+              <h3>{t('detail.votes.title', 'Votes')}</h3>
               <div style={{ display: 'grid', gap: 6 }}>
                 {item.votes && item.votes.length > 0 ? item.votes.map((v) => (
                   <div key={v.id} className="card" style={{ padding: 8 }}>
                     {v.voteValue}
                   </div>
-                )) : <div style={{ color: 'var(--text-secondary)' }}>No votes</div>}
+                )) : <div style={{ color: 'var(--text-secondary)' }}>{t('detail.votes.noVotes', 'No votes')}</div>}
               </div>
-              <h3 style={{ marginTop: 16 }}>Comments</h3>
+              <h3 style={{ marginTop: 16 }}>{t('detail.comments.title', 'Comments')}</h3>
               {/* TODO: Fetch and render comments list */}
               <div className="card" style={{ padding: 8 }}>
                 {/* Example comment entry */}

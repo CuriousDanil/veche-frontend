@@ -53,9 +53,66 @@
       "addAction": "Add action",
       "statusControl": "Status Control",
       "startVoting": "Start voting",
-      "startFinalVoting": "Start final voting",
+      "startFinalVoting": "Start voting",
       "resolve": "Resolve",
-      "archive": "Archive"
+      "archive": "Archive",
+      "title": "Actions",
+      "actionAdded": "Action added",
+      "enterNewName": "Enter new name",
+      "unknownActionType": "Unknown action type",
+      "renamePartyTo": "Rename party to \"{{name}}\"",
+      "renameCompanyTo": "Rename company to \"{{name}}\"",
+      "evictUserFromParty": "Evict user {{userId}} from party {{partyId}}",
+      "addUserToParty": "Add user {{userId}} to party {{partyId}}"
+    },
+    "status": {
+      "waiting": "WAITING",
+      "voting": "VOTING", 
+      "finalVoting": "VOTING",
+      "resolved": "RESOLVED",
+      "archived": "ARCHIVED",
+      "changeStatus": "Change status",
+      "setWaiting": "Set WAITING",
+      "setVoting": "Set VOTING",
+      "setFinalVoting": "Set VOTING",
+      "setResolved": "Set RESOLVED",
+      "setArchived": "Set ARCHIVED",
+      "statusChangedTo": "Status changed to {{status}}"
+    },
+    "voting": {
+      "agree": "Agree",
+      "disagree": "Disagree",
+      "cancel": "Cancel",
+      "yourArgument": "Your argument",
+      "explainDisagreement": "Please explain your disagreement",
+      "castingVote": "Casting vote...",
+      "argumentRequired": "{{count}} more characters needed.",
+      "argumentValid": "Looks good."
+    },
+    "summary": {
+      "finalVotingSummary": "Voting summary:",
+      "loading": "Loading summary...",
+      "failed": "Failed to load summary",
+      "noSummary": "No summary available"
+    },
+    "comments": {
+      "send": "Send",
+      "edit": "Edit",
+      "save": "Save",
+      "cancel": "Cancel",
+      "leaveComment": "Leave your comment",
+      "writeComment": "Write your comment...",
+      "noComments": "No comments yet",
+      "loading": "Loading comments…",
+      "yourArgument": "Your argument"
+    },
+    "creator": {
+      "by": "by",
+      "discussionNotFound": "Discussion not found"
+    },
+    "votes": {
+      "title": "Votes",
+      "noVotes": "No votes"
     }
   },
   "list": {

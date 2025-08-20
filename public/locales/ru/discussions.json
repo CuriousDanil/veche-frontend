@@ -59,9 +59,66 @@
       "addAction": "Добавить действие",
       "statusControl": "Управление статусом",
       "startVoting": "Начать голосование",
-      "startFinalVoting": "Начать финальное голосование",
+      "startFinalVoting": "Начать голосование",
       "resolve": "Решить",
-      "archive": "Архивировать"
+      "archive": "Архивировать",
+      "title": "Действия",
+      "actionAdded": "Действие добавлено",
+      "enterNewName": "Введите новое название",
+      "unknownActionType": "Неизвестный тип действия",
+      "renamePartyTo": "Переименовать орган в \"{{name}}\"",
+      "renameCompanyTo": "Переименовать компанию в \"{{name}}\"",
+      "evictUserFromParty": "Исключить пользователя {{userId}} из органа {{partyId}}",
+      "addUserToParty": "Добавить пользователя {{userId}} в орган {{partyId}}"
+    },
+    "status": {
+      "waiting": "ОЖИДАНИЕ",
+      "voting": "ГОЛОСОВАНИЕ", 
+      "finalVoting": "ГОЛОСОВАНИЕ",
+      "resolved": "РЕШЕНО",
+      "archived": "АРХИВИРОВАНО",
+      "changeStatus": "Изменить статус",
+      "setWaiting": "Установить ОЖИДАНИЕ",
+      "setVoting": "Установить ГОЛОСОВАНИЕ",
+      "setFinalVoting": "Установить ГОЛОСОВАНИЕ",
+      "setResolved": "Установить РЕШЕНО",
+      "setArchived": "Установить АРХИВИРОВАНО",
+      "statusChangedTo": "Статус изменен на {{status}}"
+    },
+    "voting": {
+      "agree": "За",
+      "disagree": "Против",
+      "cancel": "Отмена",
+      "yourArgument": "Ваш аргумент",
+      "explainDisagreement": "Пожалуйста, объясните ваше несогласие",
+      "castingVote": "Голосование...",
+      "argumentRequired": "Требуется еще {{count}} символов.",
+      "argumentValid": "Выглядит хорошо."
+    },
+    "summary": {
+      "finalVotingSummary": "Итоги голосования:",
+      "loading": "Загрузка итогов...",
+      "failed": "Не удалось загрузить итоги",
+      "noSummary": "Итоги недоступны"
+    },
+    "comments": {
+      "send": "Отправить",
+      "edit": "Редактировать",
+      "save": "Сохранить",
+      "cancel": "Отмена",
+      "leaveComment": "Оставьте ваш комментарий",
+      "writeComment": "Напишите ваш комментарий...",
+      "noComments": "Пока нет комментариев",
+      "loading": "Загрузка комментариев…",
+      "yourArgument": "Ваш аргумент"
+    },
+    "creator": {
+      "by": "от",
+      "discussionNotFound": "Обсуждение не найдено"
+    },
+    "votes": {
+      "title": "Голоса",
+      "noVotes": "Нет голосов"
     }
   },
   "list": {

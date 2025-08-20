@@ -19,3 +19,14 @@ export async function patchDiscussion(
   })
   if (!res.ok) throw new Error(await parseApiErrorResponse(res))
 }
+
+export type SummaryResponse = {
+  id: string
+  content: string
+}
+
+export async function fetchDiscussionSummary(discussionId: string): Promise<SummaryResponse> {
+  const res = await apiFetch(`/api/discussions/${discussionId}/summary`)
+  if (!res.ok) throw new Error(await parseApiErrorResponse(res))
+  return res.json()
+}

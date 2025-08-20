@@ -26,7 +26,7 @@
   "status": {
     "waiting": "Waiting",
     "voting": "Voting", 
-    "finalvoting": "Final voting",
+    "finalvoting": "Voting",
     "resolved": "Resolved",
     "archived": "Archived"
   },

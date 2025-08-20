@@ -225,12 +225,6 @@ export default function CompanyPage() {
             >
               {t('editParty.deleteButton', 'Delete Party')}
             </button>
-            <button 
-              className="secondary-button" 
-              onClick={handleCloseModal}
-            >
-              {t('editParty.cancel', 'Cancel')}
-            </button>
           </div>
         </div>
       </Modal>
